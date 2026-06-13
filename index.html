@@ -37,7 +37,7 @@ body{
 }
 
 .card{
-  background:rgba(255,255,255,.84);
+  background:rgba(255,255,255,.86);
   backdrop-filter:blur(24px);
   border-radius:32px;
   box-shadow:0 18px 50px rgba(15,23,42,.12);
@@ -76,36 +76,42 @@ svg{
   margin-top:12px;
 }
 
-.timer-card{
+.main{
   text-align:center;
 }
 
-.label{
-  color:var(--muted);
-  font-weight:600;
-}
-
-.timer{
-  margin-top:8px;
-  font-size:52px;
+.status{
+  font-size:25px;
   font-weight:850;
-  letter-spacing:-2px;
 }
 
-.time{
-  margin-top:6px;
+.window{
+  margin-top:8px;
   color:var(--muted);
   font-size:18px;
 }
 
-.status{
-  margin:18px auto 0;
-  padding:12px 16px;
-  border-radius:18px;
-  font-weight:800;
-  width:fit-content;
-  background:rgba(52,199,89,.14);
-  color:var(--green);
+.timer{
+  margin-top:10px;
+  font-size:34px;
+  font-weight:850;
+  letter-spacing:-1px;
+}
+
+.progress{
+  margin-top:18px;
+  height:14px;
+  background:#e2e8f0;
+  border-radius:999px;
+  overflow:hidden;
+}
+
+.progress-bar{
+  height:100%;
+  width:0%;
+  background:var(--green);
+  border-radius:999px;
+  transition:width .4s ease;
 }
 
 .grid{
@@ -115,7 +121,7 @@ svg{
 }
 
 .metric{
-  background:rgba(255,255,255,.88);
+  background:rgba(255,255,255,.9);
   border-radius:24px;
   padding:16px;
   min-height:84px;
@@ -145,7 +151,6 @@ svg{
   text-align:center;
   color:var(--muted);
   font-size:12px;
-  margin-top:2px;
 }
 </style>
 </head>
@@ -164,7 +169,6 @@ svg{
   </div>
 
   <svg viewBox="0 0 380 250" preserveAspectRatio="none">
-
     <line x1="45" y1="30" x2="45" y2="205" stroke="#cbd5e1" stroke-width="1"/>
     <line x1="45" y1="205" x2="360" y2="205" stroke="#cbd5e1" stroke-width="1"/>
 
@@ -175,15 +179,18 @@ svg{
     <path id="wave" stroke="#007aff" stroke-width="5" fill="none" stroke-linecap="round"></path>
     <circle id="dot" r="7" fill="#007aff" stroke="white" stroke-width="4"></circle>
 
-    <text id="currentHeight" x="190" y="25" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">-- m</text>
+    <text id="currentHeight" x="190" y="24" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">-- m</text>
   </svg>
 </section>
 
-<section class="card timer-card">
-  <div class="label">Prochaine pleine mer</div>
+<section class="card main">
+  <div class="status" id="status">Chargement...</div>
+  <div class="window" id="calmWindow">--</div>
   <div class="timer" id="timer">--</div>
-  <div class="time" id="nextTime">Chargement...</div>
-  <div class="status" id="status">Calcul en cours</div>
+
+  <div class="progress">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
 </section>
 
 <section class="grid">
@@ -208,8 +215,8 @@ svg{
 
   <div class="metric">
     <div class="icon">🌊</div>
-    <div class="value" id="coef">--</div>
-    <div class="metric-label">Coefficient</div>
+    <div class="value" id="heightMetric">-- m</div>
+    <div class="metric-label">Hauteur</div>
   </div>
 
 </section>
@@ -220,6 +227,7 @@ svg{
 
 <script>
 let tides = [];
+let currentWind = null;
 
 async function loadData(){
   const res = await fetch("data/tides.json?nocache=" + Date.now());
@@ -238,11 +246,6 @@ function nextHigh(){
   return tides.find(e => e.type === "high" && e.date > now);
 }
 
-function nextLow(){
-  const now = new Date();
-  return tides.find(e => e.type === "low" && e.date > now);
-}
-
 function previousEvent(){
   const now = new Date();
   return [...tides].reverse().find(e => e.date <= now);
@@ -255,18 +258,53 @@ function surroundingEvents(){
   return {prev,next};
 }
 
-function interpolateHeight(){
-  const {prev,next} = surroundingEvents();
+function calmHalfWindowMinutes(coeff, wind){
+  let minutes;
+
+  if(!coeff) minutes = 40;
+  else if(coeff < 50) minutes = 50;
+  else if(coeff <= 80) minutes = 40;
+  else minutes = 30;
+
+  if(wind !== null){
+    if(wind > 22) minutes -= 10;
+    if(wind > 30) minutes -= 10;
+  }
+
+  return Math.max(20, minutes);
+}
+
+function formatDuration(ms){
+  const totalMin = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+
+  if(h > 0) return `${h}h ${String(m).padStart(2,"0")}m`;
+  return `${m} min`;
+}
+
+function interpolateHeightAt(date){
+  const prev = [...tides].reverse().find(e => e.date <= date);
+  const next = tides.find(e => e.date > date);
 
   if(!prev || !next) return null;
 
   const total = next.date - prev.date;
-  const done = new Date() - prev.date;
+  const done = date - prev.date;
   const ratio = Math.max(0, Math.min(1, done / total));
-
   const smooth = 0.5 - 0.5 * Math.cos(Math.PI * ratio);
 
   return prev.height + (next.height - prev.height) * smooth;
+}
+
+function currentHeight(){
+  return interpolateHeightAt(new Date());
+}
+
+function mapHeight(height,minH,maxH){
+  const top = 38;
+  const bottom = 205;
+  return bottom - ((height - minH) / (maxH - minH)) * (bottom - top);
 }
 
 function drawAxes(minH,maxH){
@@ -281,7 +319,7 @@ function drawAxes(minH,maxH){
 
     yAxis.innerHTML += `
       <line x1="45" y1="${y}" x2="360" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
-      <text x="8" y="${y+4}" font-size="11" fill="#64748b">${h} m</text>
+      <text x="7" y="${y+4}" font-size="11" fill="#64748b">${h}m</text>
     `;
   }
 
@@ -295,12 +333,6 @@ function drawAxes(minH,maxH){
   });
 }
 
-function mapHeight(height,minH,maxH){
-  const top = 38;
-  const bottom = 205;
-  return bottom - ((height - minH) / (maxH - minH)) * (bottom - top);
-}
-
 function drawWave(){
   if(tides.length < 2) return;
 
@@ -308,44 +340,39 @@ function drawWave(){
   const start = new Date(now.getTime() - 6 * 3600000);
   const end = new Date(now.getTime() + 6 * 3600000);
 
-  const visible = tides.filter(e => e.date >= start && e.date <= end);
   const heights = tides.map(e => e.height);
-
   const minH = Math.max(0, Math.floor(Math.min(...heights)));
   const maxH = Math.ceil(Math.max(...heights));
 
   drawAxes(minH,maxH);
 
   let path = "";
-  const widthStart = 45;
-  const widthEnd = 360;
+  const xStart = 45;
+  const xEnd = 360;
 
-  for(let x=widthStart; x<=widthEnd; x+=4){
-    const ratio = (x-widthStart)/(widthEnd-widthStart);
+  for(let x=xStart; x<=xEnd; x+=4){
+    const ratio = (x-xStart)/(xEnd-xStart);
     const t = new Date(start.getTime() + ratio * (end-start));
+    const h = interpolateHeightAt(t);
 
-    const prev = [...tides].reverse().find(e => e.date <= t);
-    const next = tides.find(e => e.date > t);
+    if(h === null) continue;
 
-    if(!prev || !next) continue;
-
-    const r = (t - prev.date) / (next.date - prev.date);
-    const smooth = 0.5 - 0.5 * Math.cos(Math.PI * r);
-    const height = prev.height + (next.height - prev.height) * smooth;
-    const y = mapHeight(height,minH,maxH);
-
+    const y = mapHeight(h,minH,maxH);
     path += path === "" ? `M ${x} ${y}` : ` L ${x} ${y}`;
   }
 
   document.getElementById("wave").setAttribute("d",path);
   document.getElementById("fill").setAttribute("d",`${path} L 360 205 L 45 205 Z`);
 
-  const currentH = interpolateHeight();
+  const hNow = currentHeight();
 
-  if(currentH !== null){
+  if(hNow !== null){
+    const yNow = mapHeight(hNow,minH,maxH);
+
     document.getElementById("dot").setAttribute("cx",190);
-    document.getElementById("dot").setAttribute("cy",mapHeight(currentH,minH,maxH));
-    document.getElementById("currentHeight").textContent = currentH.toFixed(1) + " m";
+    document.getElementById("dot").setAttribute("cy",yNow);
+    document.getElementById("currentHeight").textContent = hNow.toFixed(1) + " m";
+    document.getElementById("heightMetric").textContent = hNow.toFixed(1) + " m";
   }
 }
 
@@ -353,52 +380,73 @@ function update(){
   const high = nextHigh();
 
   if(!high){
+    document.getElementById("status").textContent = "Données à mettre à jour";
     document.getElementById("timer").textContent = "--";
-    document.getElementById("nextTime").textContent = "Données à mettre à jour";
     return;
   }
 
   const now = new Date();
-  const diff = high.date - now;
 
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
+  const halfWindow = calmHalfWindowMinutes(high.coeff, currentWind) * 60000;
+  const startCalm = new Date(high.date.getTime() - halfWindow);
+  const endCalm = new Date(high.date.getTime() + halfWindow);
 
-  document.getElementById("timer").textContent =
-    `${h}h ${String(m).padStart(2,"0")}m`;
+  const before = now < startCalm;
+  const during = now >= startCalm && now <= endCalm;
 
-  document.getElementById("nextTime").textContent =
-    high.date.toLocaleTimeString("fr-FR", {
-      hour:"2-digit",
-      minute:"2-digit"
-    });
+  const windowText =
+    startCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) +
+    " → " +
+    endCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+
+  document.getElementById("calmWindow").textContent = windowText;
+
+  const status = document.getElementById("status");
+  const progressBar = document.getElementById("progressBar");
+
+  let progress = 0;
+
+  if(during){
+    progress = ((now - startCalm) / (endCalm - startCalm)) * 100;
+
+    if(currentWind !== null && currentWind > 22){
+      status.textContent = "🟡 Eau calme mais ventée";
+      status.style.color = "#ff9500";
+      progressBar.style.background = "#ff9500";
+    }else{
+      status.textContent = "🟢 Eau calme";
+      status.style.color = "#34c759";
+      progressBar.style.background = "#34c759";
+    }
+
+    document.getElementById("timer").textContent =
+      "Fin dans " + formatDuration(endCalm - now);
+
+  }else if(before){
+    status.textContent = "🟡 Bientôt favorable";
+    status.style.color = "#ff9500";
+    progressBar.style.background = "#ff9500";
+
+    document.getElementById("timer").textContent =
+      "Début dans " + formatDuration(startCalm - now);
+
+  }else{
+    status.textContent = "🔵 Courant marqué";
+    status.style.color = "#007aff";
+    progressBar.style.background = "#007aff";
+    progress = 100;
+
+    document.getElementById("timer").textContent =
+      "Prochaine fenêtre à venir";
+  }
+
+  progressBar.style.width =
+    Math.max(0, Math.min(100, progress)) + "%";
 
   const prev = previousEvent();
 
-  if(prev && prev.type === "low"){
-    document.getElementById("phase").textContent = "Montante";
-  }else{
-    document.getElementById("phase").textContent = "Descendante";
-  }
-
-  const status = document.getElementById("status");
-
-  if(diff <= 2 * 3600000){
-    status.textContent = "🟢 Excellent créneau";
-    status.style.color = "#34c759";
-    status.style.background = "rgba(52,199,89,.14)";
-  }else if(diff <= 4 * 3600000){
-    status.textContent = "🟡 Bientôt favorable";
-    status.style.color = "#ff9500";
-    status.style.background = "rgba(255,149,0,.14)";
-  }else{
-    status.textContent = "🔵 Encore trop tôt";
-    status.style.color = "#007aff";
-    status.style.background = "rgba(0,122,255,.12)";
-  }
-
-  document.getElementById("coef").textContent =
-    high.coeff ? high.coeff : "--";
+  document.getElementById("phase").textContent =
+    prev && prev.type === "low" ? "Montante" : "Descendante";
 
   drawWave();
 }
@@ -419,9 +467,13 @@ async function loadWeather(){
     const wind = Math.round(data.current.wind_speed_10m);
     const code = data.current.weather_code;
 
+    currentWind = wind;
+
     document.getElementById("airTemp").textContent = temp + "°C";
     document.getElementById("wind").textContent = wind + " km/h";
     document.getElementById("weatherIcon").textContent = weatherIcon(code);
+
+    update();
 
   }catch(e){
     document.getElementById("airTemp").textContent = "--°C";
@@ -439,10 +491,46 @@ function weatherIcon(code){
   return "🌤️";
 }
 
-// Température eau provisoire.
-// On branchera ensuite Hub'Eau quand la station exacte sera validée.
-function loadWaterTemp(){
-  document.getElementById("waterTemp").textContent = "21°C";
+async function loadWaterTemp(){
+  try{
+    const stationUrl =
+      "https://hubeau.eaufrance.fr/api/v1/temperature/station" +
+      "?code_commune=33243&format=json&size=20";
+
+    const stationRes = await fetch(stationUrl);
+    const stationData = await stationRes.json();
+
+    const station =
+      stationData.data.find(s =>
+        s.libelle_cours_eau &&
+        s.libelle_cours_eau.toLowerCase().includes("dordogne")
+      ) || stationData.data[0];
+
+    if(!station){
+      document.getElementById("waterTemp").textContent = "--°C";
+      return;
+    }
+
+    const tempUrl =
+      "https://hubeau.eaufrance.fr/api/v1/temperature/chronique" +
+      `?code_station=${station.code_station}` +
+      "&format=json&size=1&sort=desc";
+
+    const tempRes = await fetch(tempUrl);
+    const tempData = await tempRes.json();
+
+    const last = tempData.data?.[0];
+
+    if(last && last.resultat !== undefined){
+      document.getElementById("waterTemp").textContent =
+        Number(last.resultat).toFixed(1) + "°C";
+    }else{
+      document.getElementById("waterTemp").textContent = "--°C";
+    }
+
+  }catch(e){
+    document.getElementById("waterTemp").textContent = "--°C";
+  }
 }
 
 loadData();
@@ -451,6 +539,7 @@ loadWaterTemp();
 
 setInterval(update,1000);
 setInterval(loadWeather,15 * 60 * 1000);
+setInterval(loadWaterTemp,60 * 60 * 1000);
 </script>
 
 </body>
