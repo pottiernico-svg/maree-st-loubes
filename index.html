@@ -480,23 +480,12 @@ async function loadWaterTemp(){
     const stationsJson = await stationsRes.json();
     const stations = stationsJson.data || [];
 
-    const sortedStations = stations.sort((a,b)=>{
-      const ta = JSON.stringify(a).toLowerCase();
-      const tb = JSON.stringify(b).toLowerCase();
-
-      const score = (t) => {
-        let s = 0;
-        if(t.includes("libourne")) s += 100;
-        if(t.includes("dordogne")) s += 80;
-        if(t.includes("ambes") || t.includes("ambès")) s += 40;
-        if(t.includes("bordeaux")) s += 20;
-        return s;
-      };
-
-      return score(tb) - score(ta);
+    const candidates = stations.filter(station => {
+      const txt = JSON.stringify(station).toLowerCase();
+      return txt.includes("libourne") || txt.includes("dordogne");
     });
 
-    for(const station of sortedStations){
+    for(const station of candidates){
       const code =
         station.code_station ||
         station.code_station_temp ||
@@ -525,6 +514,10 @@ async function loadWaterTemp(){
       if(value !== undefined && value !== null && !isNaN(Number(value))){
         document.getElementById("waterTemp").textContent =
           Number(value).toFixed(1) + "°C";
+
+        console.log("Station eau utilisée :", station);
+        console.log("Dernière mesure :", last);
+
         return;
       }
     }
@@ -535,7 +528,7 @@ async function loadWaterTemp(){
     document.getElementById("waterTemp").textContent = "--°C";
   }
 }
-
+  
 loadData();
 loadWeather();
 loadWaterTemp();
