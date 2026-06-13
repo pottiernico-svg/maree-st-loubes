@@ -1,3 +1,5 @@
+process.env.TZ = "Europe/Paris";
+
 const fs = require("fs");
 
 const URL = "https://maree.info/161";
