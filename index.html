@@ -6,84 +6,146 @@
 <title>Marée Dordogne</title>
 
 <style>
+:root{
+  --blue:#007aff;
+  --green:#34c759;
+  --orange:#ff9500;
+  --red:#ff3b30;
+  --text:#0f172a;
+  --muted:#64748b;
+}
+
+*{box-sizing:border-box}
+
 body{
   margin:0;
   min-height:100vh;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   background:linear-gradient(160deg,#eef6ff,#dbeafe);
-  color:#0f172a;
+  color:var(--text);
   display:flex;
   justify-content:center;
   align-items:center;
-  padding:18px;
+  padding:16px;
 }
 
 .app{
   width:100%;
-  max-width:430px;
-  min-height:calc(100vh - 36px);
+  max-width:460px;
   display:grid;
-  grid-template-rows:1fr .9fr;
-  gap:18px;
+  gap:16px;
 }
 
 .card{
-  background:rgba(255,255,255,.82);
+  background:rgba(255,255,255,.84);
   backdrop-filter:blur(24px);
-  border-radius:34px;
+  border-radius:32px;
   box-shadow:0 18px 50px rgba(15,23,42,.12);
-  padding:24px;
+  padding:22px;
+}
+
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
 }
 
 .title{
-  font-size:32px;
-  font-weight:800;
+  font-size:31px;
+  font-weight:850;
+  letter-spacing:-1px;
 }
 
 .sub{
-  color:#64748b;
-  margin-top:4px;
+  color:var(--muted);
+  margin-top:3px;
+}
+
+.badge{
+  padding:8px 12px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:700;
+  background:rgba(0,122,255,.12);
+  color:var(--blue);
 }
 
 svg{
   width:100%;
-  height:230px;
-  margin-top:20px;
+  height:245px;
+  margin-top:12px;
 }
 
-.bottom{
+.timer-card{
   text-align:center;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
 }
 
 .label{
-  color:#64748b;
+  color:var(--muted);
   font-weight:600;
 }
 
 .timer{
-  margin-top:12px;
+  margin-top:8px;
   font-size:52px;
   font-weight:850;
   letter-spacing:-2px;
 }
 
 .time{
-  margin-top:8px;
-  color:#64748b;
+  margin-top:6px;
+  color:var(--muted);
   font-size:18px;
 }
 
 .status{
-  margin:22px auto 0;
+  margin:18px auto 0;
   padding:12px 16px;
   border-radius:18px;
-  font-weight:700;
+  font-weight:800;
   width:fit-content;
-  background:rgba(0,122,255,.12);
-  color:#007aff;
+  background:rgba(52,199,89,.14);
+  color:var(--green);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.metric{
+  background:rgba(255,255,255,.88);
+  border-radius:24px;
+  padding:16px;
+  min-height:84px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
+
+.icon{
+  font-size:28px;
+}
+
+.value{
+  margin-top:6px;
+  font-size:22px;
+  font-weight:850;
+}
+
+.metric-label{
+  margin-top:2px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:2px;
 }
 </style>
 </head>
@@ -93,22 +155,66 @@ svg{
 <main class="app">
 
 <section class="card">
-  <div class="title">Marée</div>
-  <div class="sub">Ponton Saint-Loubès</div>
+  <div class="header">
+    <div>
+      <div class="title">Marée</div>
+      <div class="sub">Ponton Saint-Loubès</div>
+    </div>
+    <div class="badge" id="phase">--</div>
+  </div>
 
-  <svg viewBox="0 0 360 230" preserveAspectRatio="none">
+  <svg viewBox="0 0 380 250" preserveAspectRatio="none">
+
+    <line x1="45" y1="30" x2="45" y2="205" stroke="#cbd5e1" stroke-width="1"/>
+    <line x1="45" y1="205" x2="360" y2="205" stroke="#cbd5e1" stroke-width="1"/>
+
+    <g id="yAxis"></g>
+    <g id="xAxis"></g>
+
     <path id="fill" fill="rgba(0,122,255,.16)"></path>
     <path id="wave" stroke="#007aff" stroke-width="5" fill="none" stroke-linecap="round"></path>
     <circle id="dot" r="7" fill="#007aff" stroke="white" stroke-width="4"></circle>
+
+    <text id="currentHeight" x="190" y="25" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">-- m</text>
   </svg>
 </section>
 
-<section class="card bottom">
-  <div class="label">Prochaine marée haute</div>
+<section class="card timer-card">
+  <div class="label">Prochaine pleine mer</div>
   <div class="timer" id="timer">--</div>
   <div class="time" id="nextTime">Chargement...</div>
   <div class="status" id="status">Calcul en cours</div>
 </section>
+
+<section class="grid">
+
+  <div class="metric">
+    <div class="icon" id="weatherIcon">☀️</div>
+    <div class="value" id="airTemp">--°C</div>
+    <div class="metric-label">Air</div>
+  </div>
+
+  <div class="metric">
+    <div class="icon">💧</div>
+    <div class="value" id="waterTemp">--°C</div>
+    <div class="metric-label">Dordogne</div>
+  </div>
+
+  <div class="metric">
+    <div class="icon">💨</div>
+    <div class="value" id="wind">--</div>
+    <div class="metric-label">Vent</div>
+  </div>
+
+  <div class="metric">
+    <div class="icon">🌊</div>
+    <div class="value" id="coef">--</div>
+    <div class="metric-label">Coefficient</div>
+  </div>
+
+</section>
+
+<div class="footer">Hauteur estimée au ponton · offset +20 min</div>
 
 </main>
 
@@ -118,10 +224,12 @@ let tides = [];
 async function loadData(){
   const res = await fetch("data/tides.json?nocache=" + Date.now());
   const data = await res.json();
+
   tides = data.events.map(e => ({
     ...e,
     date: new Date(e.timeLocal)
   }));
+
   update();
 }
 
@@ -130,34 +238,115 @@ function nextHigh(){
   return tides.find(e => e.type === "high" && e.date > now);
 }
 
+function nextLow(){
+  const now = new Date();
+  return tides.find(e => e.type === "low" && e.date > now);
+}
+
 function previousEvent(){
   const now = new Date();
   return [...tides].reverse().find(e => e.date <= now);
 }
 
-function drawWave(progress){
-  const width = 360;
-  const height = 230;
-  const base = 125;
-  const amplitude = 60;
+function surroundingEvents(){
+  const now = new Date();
+  const prev = [...tides].reverse().find(e => e.date <= now);
+  const next = tides.find(e => e.date > now);
+  return {prev,next};
+}
 
-  let path = "";
-  let dotY = base;
+function interpolateHeight(){
+  const {prev,next} = surroundingEvents();
 
-  for(let x=0; x<=width; x+=6){
-    const ratio = x / width;
-    const y = base - amplitude * Math.sin((ratio - progress) * Math.PI * 2);
-    path += x === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  if(!prev || !next) return null;
 
-    if(Math.abs(ratio - 0.5) < 0.01){
-      dotY = y;
-    }
+  const total = next.date - prev.date;
+  const done = new Date() - prev.date;
+  const ratio = Math.max(0, Math.min(1, done / total));
+
+  const smooth = 0.5 - 0.5 * Math.cos(Math.PI * ratio);
+
+  return prev.height + (next.height - prev.height) * smooth;
+}
+
+function drawAxes(minH,maxH){
+  const yAxis = document.getElementById("yAxis");
+  const xAxis = document.getElementById("xAxis");
+
+  yAxis.innerHTML = "";
+  xAxis.innerHTML = "";
+
+  for(let h=Math.ceil(minH); h<=Math.floor(maxH); h++){
+    const y = mapHeight(h,minH,maxH);
+
+    yAxis.innerHTML += `
+      <line x1="45" y1="${y}" x2="360" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="8" y="${y+4}" font-size="11" fill="#64748b">${h} m</text>
+    `;
   }
 
-  document.getElementById("wave").setAttribute("d", path);
-  document.getElementById("fill").setAttribute("d", `${path} L ${width} ${height} L 0 ${height} Z`);
-  document.getElementById("dot").setAttribute("cx", 180);
-  document.getElementById("dot").setAttribute("cy", dotY);
+  const labels = ["-6h","Maint.","+6h"];
+  const xs = [45,190,335];
+
+  labels.forEach((label,i)=>{
+    xAxis.innerHTML += `
+      <text x="${xs[i]}" y="228" text-anchor="middle" font-size="11" fill="#64748b">${label}</text>
+    `;
+  });
+}
+
+function mapHeight(height,minH,maxH){
+  const top = 38;
+  const bottom = 205;
+  return bottom - ((height - minH) / (maxH - minH)) * (bottom - top);
+}
+
+function drawWave(){
+  if(tides.length < 2) return;
+
+  const now = new Date();
+  const start = new Date(now.getTime() - 6 * 3600000);
+  const end = new Date(now.getTime() + 6 * 3600000);
+
+  const visible = tides.filter(e => e.date >= start && e.date <= end);
+  const heights = tides.map(e => e.height);
+
+  const minH = Math.max(0, Math.floor(Math.min(...heights)));
+  const maxH = Math.ceil(Math.max(...heights));
+
+  drawAxes(minH,maxH);
+
+  let path = "";
+  const widthStart = 45;
+  const widthEnd = 360;
+
+  for(let x=widthStart; x<=widthEnd; x+=4){
+    const ratio = (x-widthStart)/(widthEnd-widthStart);
+    const t = new Date(start.getTime() + ratio * (end-start));
+
+    const prev = [...tides].reverse().find(e => e.date <= t);
+    const next = tides.find(e => e.date > t);
+
+    if(!prev || !next) continue;
+
+    const r = (t - prev.date) / (next.date - prev.date);
+    const smooth = 0.5 - 0.5 * Math.cos(Math.PI * r);
+    const height = prev.height + (next.height - prev.height) * smooth;
+    const y = mapHeight(height,minH,maxH);
+
+    path += path === "" ? `M ${x} ${y}` : ` L ${x} ${y}`;
+  }
+
+  document.getElementById("wave").setAttribute("d",path);
+  document.getElementById("fill").setAttribute("d",`${path} L 360 205 L 45 205 Z`);
+
+  const currentH = interpolateHeight();
+
+  if(currentH !== null){
+    document.getElementById("dot").setAttribute("cx",190);
+    document.getElementById("dot").setAttribute("cy",mapHeight(currentH,minH,maxH));
+    document.getElementById("currentHeight").textContent = currentH.toFixed(1) + " m";
+  }
 }
 
 function update(){
@@ -187,23 +376,81 @@ function update(){
   const prev = previousEvent();
 
   if(prev && prev.type === "low"){
-    document.getElementById("status").textContent = "Marée montante";
-  } else {
-    document.getElementById("status").textContent = "Marée descendante";
+    document.getElementById("phase").textContent = "Montante";
+  }else{
+    document.getElementById("phase").textContent = "Descendante";
   }
+
+  const status = document.getElementById("status");
 
   if(diff <= 2 * 3600000){
-    document.getElementById("status").textContent = "Bon créneau pêche / canoë";
-    document.getElementById("status").style.color = "#34c759";
-    document.getElementById("status").style.background = "rgba(52,199,89,.14)";
+    status.textContent = "🟢 Excellent créneau";
+    status.style.color = "#34c759";
+    status.style.background = "rgba(52,199,89,.14)";
+  }else if(diff <= 4 * 3600000){
+    status.textContent = "🟡 Bientôt favorable";
+    status.style.color = "#ff9500";
+    status.style.background = "rgba(255,149,0,.14)";
+  }else{
+    status.textContent = "🔵 Encore trop tôt";
+    status.style.color = "#007aff";
+    status.style.background = "rgba(0,122,255,.12)";
   }
 
-  const cycle = 12.4167 * 3600000;
-  drawWave(1 - Math.min(diff / cycle, 1));
+  document.getElementById("coef").textContent =
+    high.coeff ? high.coeff : "--";
+
+  drawWave();
+}
+
+async function loadWeather(){
+  try{
+    const url =
+      "https://api.open-meteo.com/v1/forecast" +
+      "?latitude=44.934778" +
+      "&longitude=-0.445861" +
+      "&current=temperature_2m,weather_code,wind_speed_10m" +
+      "&timezone=Europe%2FParis";
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const temp = Math.round(data.current.temperature_2m);
+    const wind = Math.round(data.current.wind_speed_10m);
+    const code = data.current.weather_code;
+
+    document.getElementById("airTemp").textContent = temp + "°C";
+    document.getElementById("wind").textContent = wind + " km/h";
+    document.getElementById("weatherIcon").textContent = weatherIcon(code);
+
+  }catch(e){
+    document.getElementById("airTemp").textContent = "--°C";
+  }
+}
+
+function weatherIcon(code){
+  if(code === 0) return "☀️";
+  if(code <= 3) return "⛅";
+  if(code <= 48) return "🌫️";
+  if(code <= 67) return "🌧️";
+  if(code <= 77) return "❄️";
+  if(code <= 82) return "🌦️";
+  if(code <= 99) return "⛈️";
+  return "🌤️";
+}
+
+// Température eau provisoire.
+// On branchera ensuite Hub'Eau quand la station exacte sera validée.
+function loadWaterTemp(){
+  document.getElementById("waterTemp").textContent = "21°C";
 }
 
 loadData();
-setInterval(update, 1000);
+loadWeather();
+loadWaterTemp();
+
+setInterval(update,1000);
+setInterval(loadWeather,15 * 60 * 1000);
 </script>
 
 </body>
