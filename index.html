@@ -200,11 +200,11 @@ svg{
     <div class="metric-label">Air</div>
   </div>
 
-  <div class="metric">
-    <div class="icon">💧</div>
-    <div class="value" id="waterTemp">--°C</div>
-    <div class="metric-label">Dordogne</div>
-  </div>
+ <div class="metric">
+  <div class="icon">↕️</div>
+  <div class="value" id="coef">--</div>
+  <div class="metric-label">Coefficient</div>
+</div>
 
   <div class="metric">
     <div class="icon">💨</div>
@@ -427,6 +427,8 @@ function update(){
   document.getElementById("phase").textContent =
     prev && prev.type === "low" ? "Montante" : "Descendante";
 
+  document.getElementById("coef").textContent =
+  high.coeff ? high.coeff : "--";
   drawWave();
 }
 
@@ -470,72 +472,11 @@ function weatherIcon(code){
   return "🌤️";
 }
 
-async function loadWaterTemp(){
-  try{
-    const stationsUrl =
-      "https://hubeau.eaufrance.fr/api/v1/temperature/station" +
-      "?code_departement=33&format=json&size=500";
-
-    const stationsRes = await fetch(stationsUrl);
-    const stationsJson = await stationsRes.json();
-    const stations = stationsJson.data || [];
-
-    const candidates = stations.filter(station => {
-      const txt = JSON.stringify(station).toLowerCase();
-      return txt.includes("libourne") || txt.includes("dordogne");
-    });
-
-    for(const station of candidates){
-      const code =
-        station.code_station ||
-        station.code_station_temp ||
-        station.code_station_temperature;
-
-      if(!code) continue;
-
-      const url =
-        "https://hubeau.eaufrance.fr/api/v1/temperature/chronique" +
-        "?code_station=" + encodeURIComponent(code) +
-        "&format=json&size=1&sort=desc";
-
-      const res = await fetch(url);
-      const json = await res.json();
-      const last = json.data && json.data[0];
-
-      if(!last) continue;
-
-      const value =
-        last.resultat ??
-        last.temperature ??
-        last.temperature_eau ??
-        last.valeur ??
-        last.resultat_mesure_temp;
-
-      if(value !== undefined && value !== null && !isNaN(Number(value))){
-        document.getElementById("waterTemp").textContent =
-          Number(value).toFixed(1) + "°C";
-
-        console.log("Station eau utilisée :", station);
-        console.log("Dernière mesure :", last);
-
-        return;
-      }
-    }
-
-    document.getElementById("waterTemp").textContent = "--°C";
-
-  }catch(e){
-    document.getElementById("waterTemp").textContent = "--°C";
-  }
-}
-  
 loadData();
 loadWeather();
-loadWaterTemp();
 
 setInterval(update,1000);
 setInterval(loadWeather,15 * 60 * 1000);
-setInterval(loadWaterTemp,60 * 60 * 1000);
 </script>
 
 </body>
