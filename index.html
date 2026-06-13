@@ -10,7 +10,6 @@
   --blue:#007aff;
   --green:#34c759;
   --orange:#ff9500;
-  --red:#ff3b30;
   --text:#0f172a;
   --muted:#64748b;
 }
@@ -251,13 +250,6 @@ function previousEvent(){
   return [...tides].reverse().find(e => e.date <= now);
 }
 
-function surroundingEvents(){
-  const now = new Date();
-  const prev = [...tides].reverse().find(e => e.date <= now);
-  const next = tides.find(e => e.date > now);
-  return {prev,next};
-}
-
 function calmHalfWindowMinutes(coeff, wind){
   let minutes;
 
@@ -278,7 +270,6 @@ function formatDuration(ms){
   const totalMin = Math.max(0, Math.floor(ms / 60000));
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-
   if(h > 0) return `${h}h ${String(m).padStart(2,"0")}m`;
   return `${m} min`;
 }
@@ -289,9 +280,7 @@ function interpolateHeightAt(date){
 
   if(!prev || !next) return null;
 
-  const total = next.date - prev.date;
-  const done = date - prev.date;
-  const ratio = Math.max(0, Math.min(1, done / total));
+  const ratio = Math.max(0, Math.min(1, (date - prev.date) / (next.date - prev.date)));
   const smooth = 0.5 - 0.5 * Math.cos(Math.PI * ratio);
 
   return prev.height + (next.height - prev.height) * smooth;
@@ -316,19 +305,15 @@ function drawAxes(minH,maxH){
 
   for(let h=Math.ceil(minH); h<=Math.floor(maxH); h++){
     const y = mapHeight(h,minH,maxH);
-
     yAxis.innerHTML += `
       <line x1="45" y1="${y}" x2="360" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
       <text x="7" y="${y+4}" font-size="11" fill="#64748b">${h}m</text>
     `;
   }
 
-  const labels = ["-6h","Maint.","+6h"];
-  const xs = [45,190,335];
-
-  labels.forEach((label,i)=>{
+  [["-6h",45],["Maint.",190],["+6h",335]].forEach(([label,x])=>{
     xAxis.innerHTML += `
-      <text x="${xs[i]}" y="228" text-anchor="middle" font-size="11" fill="#64748b">${label}</text>
+      <text x="${x}" y="228" text-anchor="middle" font-size="11" fill="#64748b">${label}</text>
     `;
   });
 }
@@ -354,7 +339,6 @@ function drawWave(){
     const ratio = (x-xStart)/(xEnd-xStart);
     const t = new Date(start.getTime() + ratio * (end-start));
     const h = interpolateHeightAt(t);
-
     if(h === null) continue;
 
     const y = mapHeight(h,minH,maxH);
@@ -386,7 +370,6 @@ function update(){
   }
 
   const now = new Date();
-
   const halfWindow = calmHalfWindowMinutes(high.coeff, currentWind) * 60000;
   const startCalm = new Date(high.date.getTime() - halfWindow);
   const endCalm = new Date(high.date.getTime() + halfWindow);
@@ -394,12 +377,10 @@ function update(){
   const before = now < startCalm;
   const during = now >= startCalm && now <= endCalm;
 
-  const windowText =
+  document.getElementById("calmWindow").textContent =
     startCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) +
     " → " +
     endCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-
-  document.getElementById("calmWindow").textContent = windowText;
 
   const status = document.getElementById("status");
   const progressBar = document.getElementById("progressBar");
@@ -440,11 +421,9 @@ function update(){
       "Prochaine fenêtre à venir";
   }
 
-  progressBar.style.width =
-    Math.max(0, Math.min(100, progress)) + "%";
+  progressBar.style.width = Math.max(0, Math.min(100, progress)) + "%";
 
   const prev = previousEvent();
-
   document.getElementById("phase").textContent =
     prev && prev.type === "low" ? "Montante" : "Descendante";
 
@@ -493,40 +472,64 @@ function weatherIcon(code){
 
 async function loadWaterTemp(){
   try{
-    const stationUrl =
+    const stationsUrl =
       "https://hubeau.eaufrance.fr/api/v1/temperature/station" +
-      "?code_commune=33243&format=json&size=20";
+      "?code_departement=33&format=json&size=500";
 
-    const stationRes = await fetch(stationUrl);
-    const stationData = await stationRes.json();
+    const stationsRes = await fetch(stationsUrl);
+    const stationsJson = await stationsRes.json();
+    const stations = stationsJson.data || [];
 
-    const station =
-      stationData.data.find(s =>
-        s.libelle_cours_eau &&
-        s.libelle_cours_eau.toLowerCase().includes("dordogne")
-      ) || stationData.data[0];
+    const sortedStations = stations.sort((a,b)=>{
+      const ta = JSON.stringify(a).toLowerCase();
+      const tb = JSON.stringify(b).toLowerCase();
 
-    if(!station){
-      document.getElementById("waterTemp").textContent = "--°C";
-      return;
+      const score = (t) => {
+        let s = 0;
+        if(t.includes("libourne")) s += 100;
+        if(t.includes("dordogne")) s += 80;
+        if(t.includes("ambes") || t.includes("ambès")) s += 40;
+        if(t.includes("bordeaux")) s += 20;
+        return s;
+      };
+
+      return score(tb) - score(ta);
+    });
+
+    for(const station of sortedStations){
+      const code =
+        station.code_station ||
+        station.code_station_temp ||
+        station.code_station_temperature;
+
+      if(!code) continue;
+
+      const url =
+        "https://hubeau.eaufrance.fr/api/v1/temperature/chronique" +
+        "?code_station=" + encodeURIComponent(code) +
+        "&format=json&size=1&sort=desc";
+
+      const res = await fetch(url);
+      const json = await res.json();
+      const last = json.data && json.data[0];
+
+      if(!last) continue;
+
+      const value =
+        last.resultat ??
+        last.temperature ??
+        last.temperature_eau ??
+        last.valeur ??
+        last.resultat_mesure_temp;
+
+      if(value !== undefined && value !== null && !isNaN(Number(value))){
+        document.getElementById("waterTemp").textContent =
+          Number(value).toFixed(1) + "°C";
+        return;
+      }
     }
 
-    const tempUrl =
-      "https://hubeau.eaufrance.fr/api/v1/temperature/chronique" +
-      `?code_station=${station.code_station}` +
-      "&format=json&size=1&sort=desc";
-
-    const tempRes = await fetch(tempUrl);
-    const tempData = await tempRes.json();
-
-    const last = tempData.data?.[0];
-
-    if(last && last.resultat !== undefined){
-      document.getElementById("waterTemp").textContent =
-        Number(last.resultat).toFixed(1) + "°C";
-    }else{
-      document.getElementById("waterTemp").textContent = "--°C";
-    }
+    document.getElementById("waterTemp").textContent = "--°C";
 
   }catch(e){
     document.getElementById("waterTemp").textContent = "--°C";
