@@ -1,6 +1,11 @@
 {
-  "updatedAt": "2026-06-13T00:00:00.000Z",
+  "updatedAt": "2026-06-13T13:06:53.607Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
+  "spot": {
+    "name": "Ponton Saint-Loubès",
+    "lat": 44.934778,
+    "lon": -0.445861
+  },
   "events": []
 }
