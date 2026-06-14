@@ -371,8 +371,8 @@ function update(){
 
   const now = new Date();
   const halfWindow = calmHalfWindowMinutes(high.coeff, currentWind) * 60000;
-  const startCalm = new Date(high.date.getTime() - halfWindow);
-  const endCalm = new Date(high.date.getTime() + halfWindow);
+  const startCalm = new Date(high.date.getTime() - 20 * 60000);
+  const endCalm = new Date(high.date.getTime() + 70 * 60000);
 
   const before = now < startCalm;
   const during = now >= startCalm && now <= endCalm;
