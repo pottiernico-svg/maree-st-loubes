@@ -80,6 +80,7 @@ svg{
 }
 
 .status{
+  min-height:32px;
   font-size:25px;
   font-weight:850;
 }
@@ -183,7 +184,7 @@ svg{
 </section>
 
 <section class="card main">
-  <div class="status" id="status">Chargement...</div>
+  <div class="status" id="status"></div>
   <div class="window" id="calmWindow">--</div>
   <div class="timer" id="timer">--</div>
 
@@ -200,11 +201,11 @@ svg{
     <div class="metric-label">Air</div>
   </div>
 
- <div class="metric">
-  <div class="icon">↕️</div>
-  <div class="value" id="coef">--</div>
-  <div class="metric-label">Coefficient</div>
-</div>
+  <div class="metric">
+    <div class="icon">↕️</div>
+    <div class="value" id="coef">--</div>
+    <div class="metric-label">Coefficient</div>
+  </div>
 
   <div class="metric">
     <div class="icon">💨</div>
@@ -228,6 +229,8 @@ svg{
 let tides = [];
 let currentWind = null;
 
+const CURRENT_DELAY_MINUTES = 40;
+
 async function loadData(){
   const res = await fetch("data/tides.json?nocache=" + Date.now());
   const data = await res.json();
@@ -245,31 +248,57 @@ function nextHigh(){
   return tides.find(e => e.type === "high" && e.date > now);
 }
 
-function previousEvent(){
+function lastHigh(){
   const now = new Date();
-  return [...tides].reverse().find(e => e.date <= now);
+  return [...tides].reverse().find(e => e.type === "high" && e.date <= now);
 }
 
-function calmHalfWindowMinutes(coeff, wind){
-  let minutes;
+function lastLow(){
+  const now = new Date();
+  return [...tides].reverse().find(e => e.type === "low" && e.date <= now);
+}
 
-  if(!coeff) minutes = 40;
-  else if(coeff < 50) minutes = 50;
-  else if(coeff <= 80) minutes = 40;
-  else minutes = 30;
+function calmWindowAround(high){
+  let before = 20;
+  let after = 70;
 
-  if(wind !== null){
-    if(wind > 22) minutes -= 10;
-    if(wind > 30) minutes -= 10;
+  const coeff = high.coeff;
+
+  if(coeff){
+    if(coeff < 50){
+      before = 30;
+      after = 80;
+    }else if(coeff > 80){
+      before = 10;
+      after = 60;
+    }
   }
 
-  return Math.max(20, minutes);
+  if(currentWind !== null){
+    if(currentWind > 22){
+      before -= 5;
+      after -= 10;
+    }
+    if(currentWind > 30){
+      before -= 5;
+      after -= 10;
+    }
+  }
+
+  before = Math.max(5, before);
+  after = Math.max(30, after);
+
+  return {
+    start: new Date(high.date.getTime() - before * 60000),
+    end: new Date(high.date.getTime() + after * 60000)
+  };
 }
 
 function formatDuration(ms){
   const totalMin = Math.max(0, Math.floor(ms / 60000));
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
+
   if(h > 0) return `${h}h ${String(m).padStart(2,"0")}m`;
   return `${m} min`;
 }
@@ -284,10 +313,6 @@ function interpolateHeightAt(date){
   const smooth = 0.5 - 0.5 * Math.cos(Math.PI * ratio);
 
   return prev.height + (next.height - prev.height) * smooth;
-}
-
-function currentHeight(){
-  return interpolateHeightAt(new Date());
 }
 
 function mapHeight(height,minH,maxH){
@@ -339,6 +364,7 @@ function drawWave(){
     const ratio = (x-xStart)/(xEnd-xStart);
     const t = new Date(start.getTime() + ratio * (end-start));
     const h = interpolateHeightAt(t);
+
     if(h === null) continue;
 
     const y = mapHeight(h,minH,maxH);
@@ -348,7 +374,7 @@ function drawWave(){
   document.getElementById("wave").setAttribute("d",path);
   document.getElementById("fill").setAttribute("d",`${path} L 360 205 L 45 205 Z`);
 
-  const hNow = currentHeight();
+  const hNow = interpolateHeightAt(now);
 
   if(hNow !== null){
     const yNow = mapHeight(hNow,minH,maxH);
@@ -360,19 +386,33 @@ function drawWave(){
   }
 }
 
+function updatePhase(){
+  const now = new Date();
+  const high = lastHigh();
+  const low = lastLow();
+
+  if(high && now - high.date < CURRENT_DELAY_MINUTES * 60000){
+    document.getElementById("phase").textContent = "Étale";
+  }else if(low && (!high || low.date > high.date)){
+    document.getElementById("phase").textContent = "Montante";
+  }else{
+    document.getElementById("phase").textContent = "Descendante";
+  }
+}
+
 function update(){
   const high = nextHigh();
 
   if(!high){
-    document.getElementById("status").textContent = "Données à mettre à jour";
-    document.getElementById("timer").textContent = "--";
+    document.getElementById("status").textContent = "";
+    document.getElementById("timer").textContent = "Données à mettre à jour";
     return;
   }
 
   const now = new Date();
-  const halfWindow = calmHalfWindowMinutes(high.coeff, currentWind) * 60000;
-  const startCalm = new Date(high.date.getTime() - 20 * 60000);
-  const endCalm = new Date(high.date.getTime() + 70 * 60000);
+  const calm = calmWindowAround(high);
+  const startCalm = calm.start;
+  const endCalm = calm.end;
 
   const before = now < startCalm;
   const during = now >= startCalm && now <= endCalm;
@@ -381,6 +421,9 @@ function update(){
     startCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) +
     " → " +
     endCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+
+  document.getElementById("coef").textContent =
+    high.coeff ? high.coeff : "--";
 
   const status = document.getElementById("status");
   const progressBar = document.getElementById("progressBar");
@@ -404,16 +447,25 @@ function update(){
       "Fin dans " + formatDuration(endCalm - now);
 
   }else if(before){
-    status.textContent = "🟡 Bientôt favorable";
-    status.style.color = "#ff9500";
-    progressBar.style.background = "#ff9500";
+    const timeBefore = startCalm - now;
 
-    document.getElementById("timer").textContent =
-      "Début dans " + formatDuration(startCalm - now);
+    if(timeBefore <= 2 * 3600000){
+      status.textContent = "🟡 Bientôt favorable";
+      status.style.color = "#ff9500";
+      progressBar.style.background = "#ff9500";
+
+      document.getElementById("timer").textContent =
+        "Début dans " + formatDuration(timeBefore);
+    }else{
+      status.textContent = "";
+      progressBar.style.background = "#007aff";
+
+      document.getElementById("timer").textContent =
+        "Dans " + formatDuration(timeBefore);
+    }
 
   }else{
-    status.textContent = "🔵 Courant marqué";
-    status.style.color = "#007aff";
+    status.textContent = "";
     progressBar.style.background = "#007aff";
     progress = 100;
 
@@ -421,14 +473,10 @@ function update(){
       "Prochaine fenêtre à venir";
   }
 
-  progressBar.style.width = Math.max(0, Math.min(100, progress)) + "%";
+  progressBar.style.width =
+    Math.max(0, Math.min(100, progress)) + "%";
 
-  const prev = previousEvent();
-  document.getElementById("phase").textContent =
-    prev && prev.type === "low" ? "Montante" : "Descendante";
-
-  document.getElementById("coef").textContent =
-  high.coeff ? high.coeff : "--";
+  updatePhase();
   drawWave();
 }
 
