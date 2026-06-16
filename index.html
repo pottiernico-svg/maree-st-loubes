@@ -186,7 +186,7 @@ svg{
 <section class="card main">
   <div class="status" id="status"></div>
   <div class="window" id="calmWindow">--</div>
-  <div class="timer" id="timer">--</div>
+  <div class="timer" id="timer">Chargement...</div>
 
   <div class="progress">
     <div class="progress-bar" id="progressBar"></div>
@@ -232,15 +232,19 @@ let currentWind = null;
 const CURRENT_DELAY_MINUTES = 40;
 
 async function loadData(){
-  const res = await fetch("data/tides.json?nocache=" + Date.now());
-  const data = await res.json();
+  try{
+    const res = await fetch("data/tides.json?nocache=" + Date.now());
+    const data = await res.json();
 
-  tides = data.events.map(e => ({
-    ...e,
-    date: new Date(e.timeLocal)
-  }));
+    tides = data.events.map(e => ({
+      ...e,
+      date: new Date(e.timeLocal)
+    }));
 
-  update();
+    update();
+  }catch(e){
+    document.getElementById("timer").textContent = "Erreur données";
+  }
 }
 
 function nextHigh(){
@@ -248,32 +252,34 @@ function nextHigh(){
   return tides.find(e => e.type === "high" && e.date > now);
 }
 
-function relevantHigh(){
+function previousHigh(){
   const now = new Date();
-
-  const previousHigh = [...tides].reverse().find(e =>
-    e.type === "high" && e.date <= now
-  );
-
-  if(previousHigh){
-    const calm = calmWindowAround(previousHigh);
-
-    if(now >= calm.start && now <= calm.end){
-      return previousHigh;
-    }
-  }
-
-  return nextHigh();
+  return [...tides].reverse().find(e => e.type === "high" && e.date <= now);
 }
 
 function lastHigh(){
-  const now = new Date();
-  return [...tides].reverse().find(e => e.type === "high" && e.date <= now);
+  return previousHigh();
 }
 
 function lastLow(){
   const now = new Date();
   return [...tides].reverse().find(e => e.type === "low" && e.date <= now);
+}
+
+function relevantHigh(){
+  const now = new Date();
+
+  const prevHigh = previousHigh();
+
+  if(prevHigh){
+    const calm = calmWindowAround(prevHigh);
+
+    if(now >= calm.start && now <= calm.end){
+      return prevHigh;
+    }
+  }
+
+  return nextHigh();
 }
 
 function calmWindowAround(high){
@@ -336,6 +342,9 @@ function interpolateHeightAt(date){
 function mapHeight(height,minH,maxH){
   const top = 38;
   const bottom = 205;
+
+  if(maxH === minH) return bottom;
+
   return bottom - ((height - minH) / (maxH - minH)) * (bottom - top);
 }
 
@@ -368,7 +377,10 @@ function drawWave(){
   const start = new Date(now.getTime() - 6 * 3600000);
   const end = new Date(now.getTime() + 6 * 3600000);
 
-  const heights = tides.map(e => e.height);
+  const heights = tides.map(e => e.height).filter(h => !isNaN(h));
+
+  if(!heights.length) return;
+
   const minH = Math.max(0, Math.floor(Math.min(...heights)));
   const maxH = Math.ceil(Math.max(...heights));
 
@@ -389,8 +401,10 @@ function drawWave(){
     path += path === "" ? `M ${x} ${y}` : ` L ${x} ${y}`;
   }
 
-  document.getElementById("wave").setAttribute("d",path);
-  document.getElementById("fill").setAttribute("d",`${path} L 360 205 L 45 205 Z`);
+  if(path){
+    document.getElementById("wave").setAttribute("d",path);
+    document.getElementById("fill").setAttribute("d",`${path} L 360 205 L 45 205 Z`);
+  }
 
   const hNow = interpolateHeightAt(now);
 
@@ -419,6 +433,8 @@ function updatePhase(){
 }
 
 function update(){
+  if(!tides.length) return;
+
   const high = relevantHigh();
 
   if(!high){
@@ -483,19 +499,26 @@ function update(){
     }
 
   }else{
-  status.textContent = "";
+    const next = nextHigh();
 
-  const next = nextHigh();
+    status.textContent = "";
+    progressBar.style.background = "#007aff";
+    progress = 0;
 
-  if(next){
-    const nextCalm = calmWindowAround(next);
+    if(next){
+      const nextCalm = calmWindowAround(next);
 
-    document.getElementById("timer").textContent =
-      "Dans " + formatDuration(nextCalm.start - now);
-  }
+      document.getElementById("calmWindow").textContent =
+        nextCalm.start.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) +
+        " → " +
+        nextCalm.end.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
 
-  progress = 0;
-}
+      document.getElementById("timer").textContent =
+        "Dans " + formatDuration(nextCalm.start - now);
+    }else{
+      document.getElementById("timer").textContent =
+        "Données à mettre à jour";
+    }
   }
 
   progressBar.style.width =
@@ -531,6 +554,7 @@ async function loadWeather(){
 
   }catch(e){
     document.getElementById("airTemp").textContent = "--°C";
+    document.getElementById("wind").textContent = "--";
   }
 }
 
