@@ -247,6 +247,24 @@ function nextHigh(){
   const now = new Date();
   return tides.find(e => e.type === "high" && e.date > now);
 }
+  
+  function relevantHigh(){
+  const now = new Date();
+
+  const previousHigh = [...tides].reverse().find(e =>
+    e.type === "high" && e.date <= now
+  );
+
+  if(previousHigh){
+    const calm = calmWindowAround(previousHigh);
+
+    if(now <= calm.end){
+      return previousHigh;
+    }
+  }
+
+  return nextHigh();
+}
 
 function lastHigh(){
   const now = new Date();
@@ -401,7 +419,7 @@ function updatePhase(){
 }
 
 function update(){
-  const high = nextHigh();
+  const high = relevantHigh();
 
   if(!high){
     document.getElementById("status").textContent = "";
@@ -465,12 +483,19 @@ function update(){
     }
 
   }else{
-    status.textContent = "";
-    progressBar.style.background = "#007aff";
-    progress = 100;
+  status.textContent = "";
+
+  const next = nextHigh();
+
+  if(next){
+    const nextCalm = calmWindowAround(next);
 
     document.getElementById("timer").textContent =
-      "Prochaine fenêtre à venir";
+      "Dans " + formatDuration(nextCalm.start - now);
+  }
+
+  progress = 0;
+}
   }
 
   progressBar.style.width =
