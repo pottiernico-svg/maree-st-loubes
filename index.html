@@ -247,8 +247,8 @@ function nextHigh(){
   const now = new Date();
   return tides.find(e => e.type === "high" && e.date > now);
 }
-  
-  function relevantHigh(){
+
+function relevantHigh(){
   const now = new Date();
 
   const previousHigh = [...tides].reverse().find(e =>
@@ -258,7 +258,7 @@ function nextHigh(){
   if(previousHigh){
     const calm = calmWindowAround(previousHigh);
 
-    if(now <= calm.end){
+    if(now >= calm.start && now <= calm.end){
       return previousHigh;
     }
   }
