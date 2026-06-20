@@ -66,7 +66,16 @@ async function main() {
     });
   }
 
-  events.sort((a, b) => new Date(a.timeLocal) - new Date(b.timeLocal));
+events.sort((a, b) => new Date(a.timeLocal) - new Date(b.timeLocal));
+
+const now = new Date();
+const minDate = new Date(now.getTime() - 18 * 60 * 60 * 1000);
+const maxDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+const filteredEvents = events.filter(e => {
+  const d = new Date(e.timeLocal);
+  return d >= minDate && d <= maxDate;
+});  
 
   const data = {
     updatedAt: new Date().toISOString(),
@@ -77,7 +86,7 @@ async function main() {
       lat: 44.934778,
       lon: -0.445861
     },
-    events
+    events: filteredEvents
   };
 
   fs.mkdirSync("data", { recursive: true });
