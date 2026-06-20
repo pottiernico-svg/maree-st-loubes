@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-20T17:21:24.857Z",
+  "updatedAt": "2026-06-20T17:28:05.992Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
   "spot": {
@@ -13,7 +13,7 @@
       "timeBordeaux": "2026-06-20T22:48:00.000Z",
       "timeLocal": "2026-06-20T23:08:00.000Z",
       "height": 4.9,
-      "coeff": null
+      "coeff": 69
     },
     {
       "type": "low",
