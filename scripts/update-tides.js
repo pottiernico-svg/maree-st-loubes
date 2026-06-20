@@ -87,6 +87,30 @@ const filteredEvents = events.filter(e => {
   return d >= minDate && d <= maxDate;
 });  
 
+let existingEvents = [];
+
+try {
+  const existing = JSON.parse(fs.readFileSync("data/tides.json", "utf8"));
+  existingEvents = existing.events || [];
+} catch (e) {
+  existingEvents = [];
+}
+
+const allEventsMap = new Map();
+
+[...existingEvents, ...filteredEvents].forEach(event => {
+  allEventsMap.set(event.timeLocal, event);
+});
+
+const mergedEvents = [...allEventsMap.values()]
+  .sort((a, b) => new Date(a.timeLocal) - new Date(b.timeLocal))
+  .filter(e => {
+    const d = new Date(e.timeLocal);
+    const keepFrom = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+    const keepUntil = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+    return d >= keepFrom && d <= keepUntil;
+  });
+  
   const data = {
     updatedAt: new Date().toISOString(),
     source: "maree.info Bordeaux",
@@ -96,13 +120,13 @@ const filteredEvents = events.filter(e => {
       lat: 44.934778,
       lon: -0.445861
     },
-    events: filteredEvents
+    events: mergedEvents
   };
 
   fs.mkdirSync("data", { recursive: true });
   fs.writeFileSync("data/tides.json", JSON.stringify(data, null, 2));
 
-  console.log(`OK - ${events.length} événements extraits`);
+  console.log(`OK - ${filteredEvents.length} nouveaux événements, ${mergedEvents.length} conservés`);
 }
 
 main().catch(err => {
