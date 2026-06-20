@@ -328,8 +328,24 @@ function formatDuration(ms){
 }
 
 function interpolateHeightAt(date){
-  const prev = [...tides].reverse().find(e => e.date <= date);
-  const next = tides.find(e => e.date > date);
+  let events = [...tides];
+
+  if(events.length >= 2 && date < events[0].date){
+    const first = events[0];
+    const second = events[1];
+
+    const syntheticPrevious = {
+      ...second,
+      date: new Date(first.date.getTime() - 12.4167 * 3600000),
+      height: second.height,
+      type: second.type
+    };
+
+    events = [syntheticPrevious, ...events];
+  }
+
+  const prev = [...events].reverse().find(e => e.date <= date);
+  const next = events.find(e => e.date > date);
 
   if(!prev || !next) return null;
 
