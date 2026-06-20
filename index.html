@@ -387,8 +387,16 @@ function drawWave(){
   const xStart = 45;
   const xEnd = 360;
 
-  const start = tides[0].date;
-  const end = tides[Math.min(tides.length - 1, 6)].date;
+  const firstEvent = tides[0].date;
+  const hasPastEvent = tides.some(e => e.date <= now);
+
+  const start = hasPastEvent
+    ? new Date(now.getTime() - 6 * 3600000)
+    : firstEvent;
+
+  const end = hasPastEvent
+    ? new Date(now.getTime() + 6 * 3600000)
+    : new Date(start.getTime() + 12 * 3600000);
 
   for(let x=xStart; x<=xEnd; x+=4){
     const ratio = (x-xStart)/(xEnd-xStart);
