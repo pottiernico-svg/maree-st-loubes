@@ -68,6 +68,16 @@ async function main() {
 
 events.sort((a, b) => new Date(a.timeLocal) - new Date(b.timeLocal));
 
+let lastCoeff = null;
+
+for(const event of events){
+  if(event.coeff){
+    lastCoeff = event.coeff;
+  }else if(lastCoeff){
+    event.coeff = lastCoeff;
+  }
+}
+
 const now = new Date();
 const minDate = new Date(now.getTime() - 18 * 60 * 60 * 1000);
 const maxDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
