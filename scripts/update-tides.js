@@ -77,7 +77,17 @@ for(const event of events){
     event.coeff = lastCoeff;
   }
 }
+  
+let nextCoeff = null;
 
+for(let i = events.length - 1; i >= 0; i--){
+  if(events[i].coeff){
+    nextCoeff = events[i].coeff;
+  }else if(nextCoeff){
+    events[i].coeff = nextCoeff;
+  }
+}
+  
 const now = new Date();
 const minDate = new Date(now.getTime() - 18 * 60 * 60 * 1000);
 const maxDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
