@@ -374,11 +374,8 @@ function drawWave(){
   if(tides.length < 2) return;
 
   const now = new Date();
-  const start = new Date(now.getTime() - 6 * 3600000);
-  const end = new Date(now.getTime() + 6 * 3600000);
 
   const heights = tides.map(e => e.height).filter(h => !isNaN(h));
-
   if(!heights.length) return;
 
   const minH = Math.max(0, Math.floor(Math.min(...heights)));
@@ -390,11 +387,14 @@ function drawWave(){
   const xStart = 45;
   const xEnd = 360;
 
+  const start = tides[0].date;
+  const end = tides[Math.min(tides.length - 1, 6)].date;
+
   for(let x=xStart; x<=xEnd; x+=4){
     const ratio = (x-xStart)/(xEnd-xStart);
     const t = new Date(start.getTime() + ratio * (end-start));
-    const h = interpolateHeightAt(t);
 
+    const h = interpolateHeightAt(t);
     if(h === null) continue;
 
     const y = mapHeight(h,minH,maxH);
@@ -415,6 +415,9 @@ function drawWave(){
     document.getElementById("dot").setAttribute("cy",yNow);
     document.getElementById("currentHeight").textContent = hNow.toFixed(1) + " m";
     document.getElementById("heightMetric").textContent = hNow.toFixed(1) + " m";
+  }else{
+    document.getElementById("currentHeight").textContent = "-- m";
+    document.getElementById("heightMetric").textContent = "-- m";
   }
 }
 
