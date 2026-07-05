@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-04T11:00:28.268Z",
+  "updatedAt": "2026-07-05T11:15:41.385Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
   "spot": {
@@ -8,34 +8,6 @@
     "lon": -0.445861
   },
   "events": [
-    {
-      "type": "low",
-      "timeBordeaux": "2026-07-02T15:19:00.000Z",
-      "timeLocal": "2026-07-02T15:39:00.000Z",
-      "height": 0.25,
-      "coeff": 71
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-07-02T20:00:00.000Z",
-      "timeLocal": "2026-07-02T20:20:00.000Z",
-      "height": 4.95,
-      "coeff": 72
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-07-03T03:37:00.000Z",
-      "timeLocal": "2026-07-03T03:57:00.000Z",
-      "height": 0.15,
-      "coeff": 72
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-07-03T08:20:00.000Z",
-      "timeLocal": "2026-07-03T08:40:00.000Z",
-      "height": 4.65,
-      "coeff": 72
-    },
     {
       "type": "low",
       "timeBordeaux": "2026-07-03T15:52:00.000Z",
@@ -83,7 +55,7 @@
       "timeBordeaux": "2026-07-05T04:48:00.000Z",
       "timeLocal": "2026-07-05T05:08:00.000Z",
       "height": 0.15,
-      "coeff": 69
+      "coeff": 68
     },
     {
       "type": "high",
@@ -174,6 +146,34 @@
       "timeBordeaux": "2026-07-09T08:01:00.000Z",
       "timeLocal": "2026-07-09T08:21:00.000Z",
       "height": 0.3,
+      "coeff": 52
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-09T13:04:00.000Z",
+      "timeLocal": "2026-07-09T13:24:00.000Z",
+      "height": 4.35,
+      "coeff": 52
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-09T20:36:00.000Z",
+      "timeLocal": "2026-07-09T20:56:00.000Z",
+      "height": 0.35,
+      "coeff": 52
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-10T01:39:00.000Z",
+      "timeLocal": "2026-07-10T01:59:00.000Z",
+      "height": 4.45,
+      "coeff": 52
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-10T09:12:00.000Z",
+      "timeLocal": "2026-07-10T09:32:00.000Z",
+      "height": 0.35,
       "coeff": 52
     }
   ]
