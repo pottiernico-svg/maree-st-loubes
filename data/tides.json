@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-17T06:26:54.468Z",
+  "updatedAt": "2026-07-18T06:17:33.486Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
   "spot": {
@@ -8,34 +8,6 @@
     "lon": -0.445861
   },
   "events": [
-    {
-      "type": "high",
-      "timeBordeaux": "2026-07-15T06:57:00.000Z",
-      "timeLocal": "2026-07-15T07:17:00.000Z",
-      "height": 5.2,
-      "coeff": 94
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-07-15T14:52:00.000Z",
-      "timeLocal": "2026-07-15T15:12:00.000Z",
-      "height": 0.1,
-      "coeff": 94
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-07-15T19:20:00.000Z",
-      "timeLocal": "2026-07-15T19:40:00.000Z",
-      "height": 5.6,
-      "coeff": 96
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-07-16T03:17:00.000Z",
-      "timeLocal": "2026-07-16T03:37:00.000Z",
-      "height": -0.15,
-      "coeff": 98
-    },
     {
       "type": "high",
       "timeBordeaux": "2026-07-16T07:45:00.000Z",
@@ -90,7 +62,7 @@
       "timeBordeaux": "2026-07-18T04:45:00.000Z",
       "timeLocal": "2026-07-18T05:05:00.000Z",
       "height": -0.15,
-      "coeff": 94
+      "coeff": 91
     },
     {
       "type": "high",
@@ -175,6 +147,34 @@
       "timeLocal": "2026-07-21T23:59:00.000Z",
       "height": 4.35,
       "coeff": 57
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-22T07:07:00.000Z",
+      "timeLocal": "2026-07-22T07:27:00.000Z",
+      "height": 0.35,
+      "coeff": 50
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-22T12:03:00.000Z",
+      "timeLocal": "2026-07-22T12:23:00.000Z",
+      "height": 4.1,
+      "coeff": 50
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-22T19:31:00.000Z",
+      "timeLocal": "2026-07-22T19:51:00.000Z",
+      "height": 0.4,
+      "coeff": 45
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-23T00:36:00.000Z",
+      "timeLocal": "2026-07-23T00:56:00.000Z",
+      "height": 4.1,
+      "coeff": 45
     }
   ]
 }
