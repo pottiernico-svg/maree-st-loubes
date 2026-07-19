@@ -5,29 +5,8 @@ const fs = require("fs");
 const URL = "https://maree.info/161";
 const OFFSET_MINUTES = 20;
 
-const KEEP_HISTORY_HOURS = 72;
-const KEEP_FUTURE_DAYS = 7;
-
-const MONTHS = {
-  janvier: 0,
-  février: 1,
-  fevrier: 1,
-  mars: 2,
-  avril: 3,
-  mai: 4,
-  juin: 5,
-  juillet: 6,
-  août: 7,
-  aout: 7,
-  septembre: 8,
-  octobre: 9,
-  novembre: 10,
-  décembre: 11,
-  decembre: 11
-};
-
-const DAY_PATTERN =
-  /(Lun\.|Mar\.|Mer\.|Jeu\.|Ven\.|Sam\.|Dim\.)\s+(\d{1,2})\b/g;
+const HISTORY_HOURS = 48;
+const FUTURE_DAYS = 7;
 
 /* =========================================================
    OUTILS
@@ -37,43 +16,40 @@ function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60000);
 }
 
-function normalizeText(value) {
-  return value
+function decodeHtml(text) {
+  return text
     .replace(/&nbsp;|&#160;/gi, " ")
     .replace(/&minus;/gi, "-")
-    .replace(/&deg;/gi, "°")
     .replace(/&amp;/gi, "&")
-    .replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\u00a0/g, " ");
 }
 
-function htmlToText(html) {
-  return normalizeText(
+function cleanHtml(html) {
+  return decodeHtml(
     html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       .replace(/<br\s*\/?>/gi, " ")
       .replace(/<\/(tr|td|th|div|p|li|h1|h2|h3)>/gi, " ")
       .replace(/<[^>]+>/g, " ")
-  );
+  )
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function parseNumber(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const number = Number(
-    value
+function parseHeight(value) {
+  const result = Number(
+    String(value)
       .replace(",", ".")
       .replace(/\s/g, "")
   );
 
-  return Number.isFinite(number) ? number : null;
+  return Number.isFinite(result) ? result : null;
 }
 
-function validDate(date) {
+function isValidDate(date) {
   return (
     date instanceof Date &&
     !Number.isNaN(date.getTime())
@@ -88,91 +64,96 @@ function eventKey(event) {
    DATE DE LA PAGE
 ========================================================= */
 
-function extractPageDate(text) {
+function getPageDate(text) {
   const match = text.match(
-    /(?:Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche)\s+(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/i
+    /(Lundi|Mardi|Mercredi|Jeudi|Vendredi|Samedi|Dimanche)\s+(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/i
   );
 
   if (!match) {
     throw new Error(
-      "Impossible de déterminer le mois et l’année de la page maree.info"
+      "Impossible de trouver la date de la page maree.info"
     );
   }
 
-  const monthName = match[2]
+  const monthName = match[3]
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
-  const month = MONTHS[monthName];
+  const months = {
+    janvier: 0,
+    fevrier: 1,
+    mars: 2,
+    avril: 3,
+    mai: 4,
+    juin: 5,
+    juillet: 6,
+    aout: 7,
+    septembre: 8,
+    octobre: 9,
+    novembre: 10,
+    decembre: 11
+  };
 
-  if (month === undefined) {
-    throw new Error(
-      `Mois maree.info inconnu : ${match[2]}`
-    );
+  if (months[monthName] === undefined) {
+    throw new Error(`Mois inconnu : ${match[3]}`);
   }
 
   return {
-    day: Number(match[1]),
-    month,
-    year: Number(match[3])
+    day: Number(match[2]),
+    month: months[monthName],
+    year: Number(match[4])
   };
 }
 
 /* =========================================================
-   EXTRACTION DU TABLEAU PRINCIPAL
+   EXTRACTION DU TABLEAU
 ========================================================= */
 
-function extractMainTableText(html) {
-  const startMatch = html.match(
-    /Tableau horaire[\s\S]*?marée basse/i
-  );
+function getTideTable(text) {
+  const startMarker =
+    "Date Heure Hauteur Coeff.";
 
-  if (!startMatch || startMatch.index === undefined) {
+  const endMarker =
+    "PM : Pleine Mer";
+
+  const startIndex = text.indexOf(startMarker);
+  const endIndex = text.indexOf(endMarker);
+
+  if (
+    startIndex === -1 ||
+    endIndex === -1 ||
+    endIndex <= startIndex
+  ) {
     throw new Error(
-      "Début du tableau des marées introuvable"
+      "Tableau principal des marées introuvable"
     );
   }
 
-  const startIndex = startMatch.index;
-
-  const remainingHtml = html.slice(startIndex);
-
-  const endMatch = remainingHtml.match(
-    /PM\s*:\s*Pleine Mer/i
+  return text.slice(
+    startIndex + startMarker.length,
+    endIndex
   );
-
-  if (!endMatch || endMatch.index === undefined) {
-    throw new Error(
-      "Fin du tableau des marées introuvable"
-    );
-  }
-
-  const tableHtml = remainingHtml.slice(
-    0,
-    endMatch.index
-  );
-
-  return htmlToText(tableHtml);
 }
 
 /* =========================================================
-   DÉCOUPAGE PAR JOUR
+   DÉCOUPAGE EN JOURNÉES
 ========================================================= */
 
-function splitDayBlocks(tableText) {
-  const markers = [];
+function splitIntoDays(tableText) {
+  const dayRegex =
+    /(Lun\.|Mar\.|Mer\.|Jeu\.|Ven\.|Sam\.|Dim\.)\s+(\d{1,2})\b/g;
 
-  DAY_PATTERN.lastIndex = 0;
+  const markers = [];
 
   let match;
 
-  while ((match = DAY_PATTERN.exec(tableText)) !== null) {
+  while ((match = dayRegex.exec(tableText)) !== null) {
     markers.push({
       weekday: match[1],
       day: Number(match[2]),
       start: match.index,
-      contentStart: DAY_PATTERN.lastIndex
+      contentStart: dayRegex.lastIndex
     });
   }
 
@@ -183,7 +164,7 @@ function splitDayBlocks(tableText) {
   }
 
   return markers.map((marker, index) => {
-    const nextMarker = markers[index + 1];
+    const next = markers[index + 1];
 
     return {
       weekday: marker.weekday,
@@ -191,7 +172,7 @@ function splitDayBlocks(tableText) {
       content: tableText
         .slice(
           marker.contentStart,
-          nextMarker ? nextMarker.start : tableText.length
+          next ? next.start : tableText.length
         )
         .trim()
     };
@@ -201,51 +182,60 @@ function splitDayBlocks(tableText) {
 /* =========================================================
    ANALYSE D’UNE JOURNÉE
 
-   Le tableau peut contenir 3 ou 4 marées selon le jour.
-   Les horaires et les hauteurs sont associés dans leur ordre.
+   Une journée peut contenir :
+   - 3 marées ;
+   - ou 4 marées.
+
+   Maree.info place :
+   1. les horaires ;
+   2. les hauteurs ;
+   3. les coefficients.
 ========================================================= */
 
-function parseDayBlock(block) {
-  const timeMatches = [
-    ...block.content.matchAll(
-      /\b([01]?\d|2[0-3])h([0-5]\d)\b/g
-    )
-  ];
+function parseDay(dayBlock) {
+  const timeRegex =
+    /\b([01]?\d|2[0-3])h([0-5]\d)\b/g;
 
-  const heightMatches = [
-    ...block.content.matchAll(
-      /(-?\d+(?:,\d+)?)\s*m\b/gi
-    )
-  ];
+  const heightRegex =
+    /(-?\d+(?:,\d+)?)\s*m\b/gi;
 
-  if (!timeMatches.length || !heightMatches.length) {
+  const times = [
+    ...dayBlock.content.matchAll(timeRegex)
+  ].map(match => ({
+    hour: Number(match[1]),
+    minute: Number(match[2])
+  }));
+
+  const heights = [
+    ...dayBlock.content.matchAll(heightRegex)
+  ].map(match => parseHeight(match[1]));
+
+  const count = Math.min(
+    times.length,
+    heights.length
+  );
+
+  if (count < 3) {
+    console.warn(
+      `Journée ignorée : ${dayBlock.weekday} ${dayBlock.day}`,
+      dayBlock.content
+    );
+
     return null;
   }
 
-  const eventCount = Math.min(
-    timeMatches.length,
-    heightMatches.length
-  );
-
   /*
-    On retire horaires et hauteurs pour ne conserver
-    que les éventuels coefficients.
+    On retire les horaires et les hauteurs.
+    Les nombres restants compris entre 20 et 120
+    correspondent aux coefficients.
   */
-  const remainingText = block.content
-    .replace(
-      /\b([01]?\d|2[0-3])h([0-5]\d)\b/g,
-      " "
-    )
-    .replace(
-      /-?\d+(?:,\d+)?\s*m\b/gi,
-      " "
-    );
+  const remainingText = dayBlock.content
+    .replace(timeRegex, " ")
+    .replace(heightRegex, " ");
 
-  const coefficientMatches = [
+  const coefficients = [
     ...remainingText.matchAll(/\b(\d{2,3})\b/g)
-  ];
-
-  const coefficients = coefficientMatches
+  ]
     .map(match => Number(match[1]))
     .filter(value =>
       Number.isFinite(value) &&
@@ -253,104 +243,104 @@ function parseDayBlock(block) {
       value <= 120
     );
 
-  const rawEvents = [];
+  const events = [];
 
-  for (let index = 0; index < eventCount; index++) {
-    const hour = Number(timeMatches[index][1]);
-    const minute = Number(timeMatches[index][2]);
-    const height = parseNumber(heightMatches[index][1]);
+  for (let index = 0; index < count; index++) {
+    const height = heights[index];
 
-    if (
-      !Number.isFinite(hour) ||
-      !Number.isFinite(minute) ||
-      !Number.isFinite(height)
-    ) {
+    if (!Number.isFinite(height)) {
       continue;
     }
 
-    /*
-      À Bordeaux, les PM sont nettement au-dessus
-      des BM. Le seuil est volontairement placé à 2 m.
-    */
-    const type = height >= 2 ? "high" : "low";
-
-    rawEvents.push({
-      hour,
-      minute,
+    events.push({
+      hour: times[index].hour,
+      minute: times[index].minute,
       height,
-      type,
+
+      /*
+        À Bordeaux les BM sont proches de 0 m
+        et les PM proches de 4 à 5 m.
+      */
+      type: height >= 2
+        ? "high"
+        : "low",
+
       coeff: null
     });
   }
 
   /*
-    Les coefficients sont associés uniquement
-    aux pleines mers, dans leur ordre d’apparition.
+    Les coefficients sont associés aux PM
+    dans leur ordre d’apparition.
   */
   let coefficientIndex = 0;
 
-  for (const event of rawEvents) {
+  for (const event of events) {
     if (
       event.type === "high" &&
       coefficientIndex < coefficients.length
     ) {
-      event.coeff = coefficients[coefficientIndex];
+      event.coeff =
+        coefficients[coefficientIndex];
+
       coefficientIndex++;
     }
   }
 
   return {
-    ...block,
-    events: rawEvents
+    day: dayBlock.day,
+    events
   };
 }
 
 /* =========================================================
    CONSTRUCTION DES DATES
-
-   Gestion automatique des passages :
-   - fin de mois ;
-   - fin d’année.
 ========================================================= */
 
-function buildDatedEvents(parsedDays, pageDate) {
-  const events = [];
+function buildEvents(parsedDays, pageDate) {
+  const result = [];
 
-  let currentMonth = pageDate.month;
-  let currentYear = pageDate.year;
+  let year = pageDate.year;
+  let month = pageDate.month;
   let previousDay = null;
 
   for (const parsedDay of parsedDays) {
-    if (!parsedDay || !parsedDay.events.length) {
+    if (!parsedDay) {
       continue;
     }
 
+    /*
+      Passage à un nouveau mois :
+      30 → 1
+      31 → 1
+      28 → 1
+    */
     if (
       previousDay !== null &&
       parsedDay.day < previousDay
     ) {
-      currentMonth++;
+      month++;
 
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
+      if (month > 11) {
+        month = 0;
+        year++;
       }
     }
 
     previousDay = parsedDay.day;
 
-    for (const rawEvent of parsedDay.events) {
+    for (const event of parsedDay.events) {
       const bordeauxDate = new Date(
-        currentYear,
-        currentMonth,
+        year,
+        month,
         parsedDay.day,
-        rawEvent.hour,
-        rawEvent.minute,
+        event.hour,
+        event.minute,
         0,
         0
       );
 
-      if (!validDate(bordeauxDate)) {
+      if (!isValidDate(bordeauxDate)) {
         continue;
       }
 
@@ -359,30 +349,33 @@ function buildDatedEvents(parsedDays, pageDate) {
         OFFSET_MINUTES
       );
 
-      events.push({
-        type: rawEvent.type,
-        timeBordeaux: bordeauxDate.toISOString(),
-        timeLocal: localDate.toISOString(),
-        height: rawEvent.height,
-        coeff: rawEvent.coeff
+      result.push({
+        type: event.type,
+        timeBordeaux:
+          bordeauxDate.toISOString(),
+        timeLocal:
+          localDate.toISOString(),
+        height: event.height,
+        coeff: event.coeff
       });
     }
   }
 
-  return events;
+  return result;
 }
 
 /* =========================================================
-   VALIDATION ET NETTOYAGE
+   NETTOYAGE
 ========================================================= */
 
-function sanitizeEvents(events) {
-  const uniqueEvents = new Map();
+function cleanEvents(events) {
+  const unique = new Map();
 
   for (const event of events) {
-    const localDate = new Date(event.timeLocal);
+    const date = new Date(event.timeLocal);
     const height = Number(event.height);
-    const coefficient =
+
+    const coeff =
       event.coeff === null ||
       event.coeff === undefined ||
       event.coeff === ""
@@ -390,30 +383,33 @@ function sanitizeEvents(events) {
         : Number(event.coeff);
 
     if (
-      !validDate(localDate) ||
+      !isValidDate(date) ||
       !Number.isFinite(height) ||
       !["high", "low"].includes(event.type)
     ) {
       continue;
     }
 
-    const cleanedEvent = {
+    const cleaned = {
       type: event.type,
-      timeBordeaux: event.timeBordeaux,
-      timeLocal: localDate.toISOString(),
+      timeBordeaux:
+        new Date(event.timeBordeaux).toISOString(),
+      timeLocal:
+        date.toISOString(),
       height,
-      coeff: Number.isFinite(coefficient)
-        ? coefficient
-        : null
+      coeff:
+        Number.isFinite(coeff)
+          ? coeff
+          : null
     };
 
-    uniqueEvents.set(
-      eventKey(cleanedEvent),
-      cleanedEvent
+    unique.set(
+      eventKey(cleaned),
+      cleaned
     );
   }
 
-  return [...uniqueEvents.values()].sort(
+  return [...unique.values()].sort(
     (a, b) =>
       new Date(a.timeLocal) -
       new Date(b.timeLocal)
@@ -421,153 +417,145 @@ function sanitizeEvents(events) {
 }
 
 /* =========================================================
-   COEFFICIENTS
+   HISTORIQUE
 
-   Les PM gardent leur coefficient propre.
-   Pour les BM, on reprend le coefficient le plus proche,
-   uniquement pour rendre le JSON plus complet.
-========================================================= */
+   On conserve uniquement les événements antérieurs
+   au premier événement fraîchement téléchargé.
 
-function propagateCoefficients(events) {
-  const coefficientEvents = events.filter(event =>
-    Number.isFinite(Number(event.coeff))
-  );
-
-  if (!coefficientEvents.length) {
-    return events;
-  }
-
-  return events.map(event => {
-    if (Number.isFinite(Number(event.coeff))) {
-      return event;
-    }
-
-    let nearest = null;
-    let nearestDistance = Infinity;
-
-    for (const coefficientEvent of coefficientEvents) {
-      const distance = Math.abs(
-        new Date(coefficientEvent.timeLocal) -
-        new Date(event.timeLocal)
-      );
-
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearest = coefficientEvent;
-      }
-    }
-
-    return {
-      ...event,
-      coeff: nearest
-        ? Number(nearest.coeff)
-        : null
-    };
-  });
-}
-
-/* =========================================================
-   ANCIEN FICHIER
-
-   On conserve seulement les événements antérieurs
-   au premier événement fraîchement récupéré.
-
-   Tous les événements récents et futurs viennent donc
-   exclusivement du nouveau parsing, ce qui supprime
-   les anciennes données incorrectes.
+   Cela permet :
+   - d’avoir la marée précédente tôt le matin ;
+   - de supprimer les anciennes données incorrectes
+     sur les jours fraîchement récupérés.
 ========================================================= */
 
 function readExistingEvents() {
   try {
-    const existing = JSON.parse(
-      fs.readFileSync("data/tides.json", "utf8")
+    const data = JSON.parse(
+      fs.readFileSync(
+        "data/tides.json",
+        "utf8"
+      )
     );
 
-    return Array.isArray(existing.events)
-      ? existing.events
+    return Array.isArray(data.events)
+      ? data.events
       : [];
+
   } catch (error) {
     return [];
   }
 }
 
-function mergeWithHistory(freshEvents, existingEvents) {
+function mergeHistory(
+  freshEvents,
+  existingEvents
+) {
   if (!freshEvents.length) {
-    return sanitizeEvents(existingEvents);
+    return [];
   }
 
   const firstFreshDate = new Date(
     freshEvents[0].timeLocal
   );
 
-  const historicalEvents = existingEvents.filter(event => {
-    const date = new Date(event.timeLocal);
+  const oldHistory = existingEvents.filter(
+    event => {
+      const date = new Date(event.timeLocal);
 
-    return (
-      validDate(date) &&
-      date < firstFreshDate
-    );
-  });
+      return (
+        isValidDate(date) &&
+        date < firstFreshDate
+      );
+    }
+  );
 
-  return sanitizeEvents([
-    ...historicalEvents,
+  return cleanEvents([
+    ...oldHistory,
     ...freshEvents
   ]);
 }
 
 /* =========================================================
-   CONTRÔLES DE COHÉRENCE
+   COEFFICIENTS
+
+   Chaque BM reçoit le coefficient de la PM
+   la plus proche. Les PM conservent leur
+   coefficient réel.
 ========================================================= */
 
-function validateSequence(events) {
-  if (events.length < 4) {
+function completeCoefficients(events) {
+  const highWithCoefficient =
+    events.filter(event =>
+      event.type === "high" &&
+      Number.isFinite(Number(event.coeff))
+    );
+
+  return events.map(event => {
+    if (Number.isFinite(Number(event.coeff))) {
+      return event;
+    }
+
+    let nearestHigh = null;
+    let nearestDistance = Infinity;
+
+    for (const high of highWithCoefficient) {
+      const distance = Math.abs(
+        new Date(event.timeLocal) -
+        new Date(high.timeLocal)
+      );
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestHigh = high;
+      }
+    }
+
+    return {
+      ...event,
+      coeff: nearestHigh
+        ? Number(nearestHigh.coeff)
+        : null
+    };
+  });
+}
+
+/* =========================================================
+   VALIDATION
+========================================================= */
+
+function validateEvents(events) {
+  if (events.length < 6) {
     throw new Error(
-      `Seulement ${events.length} événements valides trouvés`
+      `Seulement ${events.length} événements valides`
     );
   }
 
-  for (let index = 1; index < events.length; index++) {
+  let alternationProblems = 0;
+
+  for (
+    let index = 1;
+    index < events.length;
+    index++
+  ) {
     const previous = events[index - 1];
     const current = events[index];
 
-    const previousDate = new Date(previous.timeLocal);
-    const currentDate = new Date(current.timeLocal);
-
-    if (currentDate <= previousDate) {
-      throw new Error(
-        "Les événements ne sont pas dans l’ordre chronologique"
-      );
-    }
-
-    const differenceHours =
-      (currentDate - previousDate) / 3600000;
-
-    /*
-      Une marée à Bordeaux se produit normalement
-      plusieurs heures après la précédente.
-
-      Ces limites servent seulement à détecter
-      un parsing manifestement erroné.
-    */
-    if (
-      differenceHours < 2 ||
-      differenceHours > 10
-    ) {
-      console.warn(
-        `Intervalle inhabituel de ${differenceHours.toFixed(1)} h`,
-        previous.timeLocal,
-        current.timeLocal
-      );
-    }
-
     if (previous.type === current.type) {
+      alternationProblems++;
+
       console.warn(
         "Deux événements consécutifs du même type :",
-        previous.type,
         previous.timeLocal,
-        current.timeLocal
+        current.timeLocal,
+        previous.type
       );
     }
+  }
+
+  if (alternationProblems > 2) {
+    throw new Error(
+      "La succession PM/BM récupérée paraît incorrecte"
+    );
   }
 }
 
@@ -579,45 +567,46 @@ async function main() {
   const response = await fetch(URL, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (compatible; TideDashboard/2.0)",
-      "Accept-Language": "fr-FR,fr;q=0.9"
+        "Mozilla/5.0 (compatible; TideDashboard/3.0)",
+      "Accept-Language":
+        "fr-FR,fr;q=0.9"
     }
   });
 
   if (!response.ok) {
     throw new Error(
-      `maree.info répond avec le statut ${response.status}`
+      `maree.info : erreur HTTP ${response.status}`
     );
   }
 
   const html = await response.text();
-  const fullText = htmlToText(html);
+  const text = cleanHtml(html);
 
-  const pageDate = extractPageDate(fullText);
-  const tableText = extractMainTableText(html);
-
-  const dayBlocks = splitDayBlocks(tableText);
+  const pageDate = getPageDate(text);
+  const tableText = getTideTable(text);
+  const dayBlocks = splitIntoDays(tableText);
 
   const parsedDays = dayBlocks
-    .map(parseDayBlock)
+    .map(parseDay)
     .filter(Boolean);
 
-  let freshEvents = buildDatedEvents(
+  let freshEvents = buildEvents(
     parsedDays,
     pageDate
   );
 
-  freshEvents = sanitizeEvents(freshEvents);
+  freshEvents = cleanEvents(freshEvents);
 
-  if (freshEvents.length < 4) {
+  if (freshEvents.length < 6) {
     throw new Error(
-      `Parsing incomplet : seulement ${freshEvents.length} marées récupérées`
+      `Extraction incomplète : ${freshEvents.length} événements`
     );
   }
 
-  const existingEvents = readExistingEvents();
+  const existingEvents =
+    readExistingEvents();
 
-  let mergedEvents = mergeWithHistory(
+  let events = mergeHistory(
     freshEvents,
     existingEvents
   );
@@ -626,15 +615,15 @@ async function main() {
 
   const keepFrom = new Date(
     now.getTime() -
-    KEEP_HISTORY_HOURS * 3600000
+    HISTORY_HOURS * 3600000
   );
 
   const keepUntil = new Date(
     now.getTime() +
-    KEEP_FUTURE_DAYS * 24 * 3600000
+    FUTURE_DAYS * 24 * 3600000
   );
 
-  mergedEvents = mergedEvents.filter(event => {
+  events = events.filter(event => {
     const date = new Date(event.timeLocal);
 
     return (
@@ -643,53 +632,68 @@ async function main() {
     );
   });
 
-  mergedEvents = propagateCoefficients(
-    mergedEvents
-  );
+  events = completeCoefficients(events);
+  events = cleanEvents(events);
 
-  validateSequence(mergedEvents);
+  validateEvents(events);
 
   const data = {
     updatedAt: new Date().toISOString(),
     source: "maree.info Bordeaux",
     offsetMinutes: OFFSET_MINUTES,
+
     spot: {
       name: "Ponton Saint-Loubès",
       lat: 44.934778,
       lon: -0.445861
     },
-    events: mergedEvents
+
+    events
   };
 
-  fs.mkdirSync("data", {
-    recursive: true
-  });
+  fs.mkdirSync(
+    "data",
+    { recursive: true }
+  );
 
   fs.writeFileSync(
     "data/tides.json",
     JSON.stringify(data, null, 2)
   );
 
-  const highCount = mergedEvents.filter(
+  const highCount = events.filter(
     event => event.type === "high"
   ).length;
 
-  const lowCount = mergedEvents.filter(
+  const lowCount = events.filter(
     event => event.type === "low"
   ).length;
 
   console.log(
-    [
-      "OK",
-      `${freshEvents.length} événements récupérés`,
-      `${mergedEvents.length} événements conservés`,
-      `${highCount} PM`,
-      `${lowCount} BM`
-    ].join(" - ")
+    `OK - ${events.length} événements - ${highCount} PM - ${lowCount} BM`
+  );
+
+  /*
+    Affichage des premiers événements dans Actions
+    pour pouvoir vérifier immédiatement le résultat.
+  */
+  console.log(
+    events
+      .slice(0, 10)
+      .map(event => ({
+        type: event.type,
+        timeLocal: event.timeLocal,
+        height: event.height,
+        coeff: event.coeff
+      }))
   );
 }
 
 main().catch(error => {
-  console.error("ERREUR :", error);
+  console.error(
+    "ERREUR UPDATE-TIDES :",
+    error
+  );
+
   process.exit(1);
 });
