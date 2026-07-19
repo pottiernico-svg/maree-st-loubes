@@ -2,7 +2,9 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#eaf4ff">
+
 <title>Marée Dordogne</title>
 
 <style>
@@ -12,9 +14,12 @@
   --orange:#ff9500;
   --text:#0f172a;
   --muted:#64748b;
+  --grid:#e2e8f0;
 }
 
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
 body{
   margin:0;
@@ -26,6 +31,8 @@ body{
   justify-content:center;
   align-items:center;
   padding:16px;
+  padding-top:max(16px,env(safe-area-inset-top));
+  padding-bottom:max(16px,env(safe-area-inset-bottom));
 }
 
 .app{
@@ -38,6 +45,7 @@ body{
 .card{
   background:rgba(255,255,255,.86);
   backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
   border-radius:32px;
   box-shadow:0 18px 50px rgba(15,23,42,.12);
   padding:22px;
@@ -47,6 +55,7 @@ body{
   display:flex;
   justify-content:space-between;
   align-items:flex-start;
+  gap:12px;
 }
 
 .title{
@@ -61,6 +70,7 @@ body{
 }
 
 .badge{
+  flex-shrink:0;
   padding:8px 12px;
   border-radius:999px;
   font-size:13px;
@@ -70,9 +80,11 @@ body{
 }
 
 svg{
+  display:block;
   width:100%;
   height:245px;
   margin-top:12px;
+  overflow:visible;
 }
 
 .main{
@@ -109,9 +121,9 @@ svg{
 .progress-bar{
   height:100%;
   width:0%;
-  background:var(--green);
+  background:var(--blue);
   border-radius:999px;
-  transition:width .4s ease;
+  transition:width .4s ease,background .4s ease;
 }
 
 .grid{
@@ -152,6 +164,31 @@ svg{
   color:var(--muted);
   font-size:12px;
 }
+
+@media (prefers-color-scheme:dark){
+  :root{
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --grid:#334155;
+  }
+
+  body{
+    background:linear-gradient(160deg,#0f172a,#172554);
+  }
+
+  .card{
+    background:rgba(15,23,42,.82);
+    box-shadow:0 18px 50px rgba(0,0,0,.3);
+  }
+
+  .metric{
+    background:rgba(30,41,59,.9);
+  }
+
+  .progress{
+    background:#334155;
+  }
+}
 </style>
 </head>
 
@@ -165,21 +202,68 @@ svg{
       <div class="title">Marée</div>
       <div class="sub">Ponton Saint-Loubès</div>
     </div>
+
     <div class="badge" id="phase">--</div>
   </div>
 
-  <svg viewBox="0 0 380 250" preserveAspectRatio="none">
-    <line x1="45" y1="30" x2="45" y2="205" stroke="#cbd5e1" stroke-width="1"/>
+  <svg id="tideChart" viewBox="0 0 380 250" preserveAspectRatio="none" aria-label="Courbe de marée">
+    <defs>
+      <linearGradient id="waterGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#007aff" stop-opacity=".28"/>
+        <stop offset="100%" stop-color="#007aff" stop-opacity=".04"/>
+      </linearGradient>
+    </defs>
+
+    <line x1="45" y1="34" x2="45" y2="205" stroke="#cbd5e1" stroke-width="1"/>
     <line x1="45" y1="205" x2="360" y2="205" stroke="#cbd5e1" stroke-width="1"/>
 
     <g id="yAxis"></g>
     <g id="xAxis"></g>
+    <g id="eventLabels"></g>
 
-    <path id="fill" fill="rgba(0,122,255,.16)"></path>
-    <path id="wave" stroke="#007aff" stroke-width="5" fill="none" stroke-linecap="round"></path>
-    <circle id="dot" r="7" fill="#007aff" stroke="white" stroke-width="4"></circle>
+    <path id="fill" fill="url(#waterGradient)"></path>
 
-    <text id="currentHeight" x="190" y="24" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">-- m</text>
+    <path
+      id="wave"
+      stroke="#007aff"
+      stroke-width="5"
+      fill="none"
+      stroke-linecap="round"
+      stroke-linejoin="round">
+    </path>
+
+    <line
+      id="nowLine"
+      x1="190"
+      y1="34"
+      x2="190"
+      y2="205"
+      stroke="#007aff"
+      stroke-width="1"
+      stroke-dasharray="4 5"
+      opacity=".3">
+    </line>
+
+    <circle
+      id="dot"
+      cx="190"
+      cy="120"
+      r="7"
+      fill="#007aff"
+      stroke="white"
+      stroke-width="4">
+    </circle>
+
+    <text
+      id="currentHeight"
+      x="190"
+      y="23"
+      text-anchor="middle"
+      font-size="17"
+      font-weight="800"
+      fill="currentColor">
+      -- m
+    </text>
   </svg>
 </section>
 
@@ -221,96 +305,307 @@ svg{
 
 </section>
 
-<div class="footer">Hauteur estimée au ponton · offset +20 min</div>
+<div class="footer">
+  Hauteur estimée au ponton · offset +20 min
+</div>
 
 </main>
 
 <script>
+"use strict";
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
+const CONFIG = {
+  latitude: 44.934778,
+  longitude: -0.445861,
+
+  graphHoursBefore: 6,
+  graphHoursAfter: 6,
+
+  currentDelayMinutes: 40,
+
+  calmBaseBeforeMinutes: 20,
+  calmBaseAfterMinutes: 70,
+
+  nearbyStatusHours: 2,
+
+  chart: {
+    left: 45,
+    right: 360,
+    top: 38,
+    bottom: 205
+  }
+};
+
+/* =========================================================
+   ÉTAT
+========================================================= */
+
 let tides = [];
 let currentWind = null;
 
-const CURRENT_DELAY_MINUTES = 40;
+/* =========================================================
+   OUTILS
+========================================================= */
+
+function byId(id){
+  return document.getElementById(id);
+}
+
+function clamp(value,min,max){
+  return Math.max(min,Math.min(max,value));
+}
+
+function formatTime(date){
+  return date.toLocaleTimeString("fr-FR",{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function formatAxisTime(date){
+  return date.toLocaleTimeString("fr-FR",{
+    hour:"2-digit",
+    minute:"2-digit"
+  });
+}
+
+function formatDuration(milliseconds){
+  const totalMinutes = Math.max(
+    0,
+    Math.ceil(milliseconds / 60000)
+  );
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if(hours > 0){
+    return `${hours}h ${String(minutes).padStart(2,"0")}m`;
+  }
+
+  return `${minutes} min`;
+}
+
+function parseEventDate(value){
+  if(!value){
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if(Number.isNaN(date.getTime())){
+    return null;
+  }
+
+  return date;
+}
+
+/* =========================================================
+   CHARGEMENT DES DONNÉES
+========================================================= */
 
 async function loadData(){
   try{
-    const res = await fetch("data/tides.json?nocache=" + Date.now());
-    const data = await res.json();
+    const response = await fetch(
+      "data/tides.json?nocache=" + Date.now(),
+      {cache:"no-store"}
+    );
 
-    tides = data.events.map(e => ({
-      ...e,
-      date: new Date(e.timeLocal)
-    }));
+    if(!response.ok){
+      throw new Error("Fichier de marée indisponible");
+    }
+
+    const data = await response.json();
+
+    if(!data || !Array.isArray(data.events)){
+      throw new Error("Format tides.json incorrect");
+    }
+
+    tides = data.events
+      .map(event => ({
+        ...event,
+        date: parseEventDate(event.timeLocal),
+        height: Number(event.height),
+        coeff: event.coeff === null || event.coeff === undefined
+          ? null
+          : Number(event.coeff)
+      }))
+      .filter(event =>
+        event.date instanceof Date &&
+        !Number.isNaN(event.date.getTime()) &&
+        Number.isFinite(event.height) &&
+        (event.type === "high" || event.type === "low")
+      )
+      .sort((a,b) => a.date - b.date);
+
+    if(tides.length < 2){
+      throw new Error("Pas assez de marées");
+    }
 
     update();
-  }catch(e){
-    document.getElementById("timer").textContent = "Erreur données";
+
+  }catch(error){
+    console.error(error);
+
+    byId("status").textContent = "";
+    byId("timer").textContent = "Données indisponibles";
+    byId("calmWindow").textContent = "--";
+    byId("phase").textContent = "--";
+
+    clearGraph();
   }
 }
 
-function nextHigh(){
-  const now = new Date();
-  return tides.find(e => e.type === "high" && e.date > now);
-}
+/* =========================================================
+   MOTEUR UNIQUE DE MARÉE
 
-function previousHigh(){
-  const now = new Date();
-  return [...tides].reverse().find(e => e.type === "high" && e.date <= now);
-}
+   Cette fonction est utilisée pour :
+   - la courbe ;
+   - le point actuel ;
+   - la hauteur actuelle ;
+   - le sens de la marée.
+========================================================= */
 
-function lastHigh(){
-  return previousHigh();
-}
+function tideStateAt(date){
+  if(tides.length < 2){
+    return null;
+  }
 
-function lastLow(){
-  const now = new Date();
-  return [...tides].reverse().find(e => e.type === "low" && e.date <= now);
-}
+  let previous = null;
+  let next = null;
 
-function relevantHigh(){
-  const now = new Date();
+  for(let index = 0; index < tides.length - 1; index++){
+    const first = tides[index];
+    const second = tides[index + 1];
 
-  const prevHigh = previousHigh();
-
-  if(prevHigh){
-    const calm = calmWindowAround(prevHigh);
-
-    if(now >= calm.start && now <= calm.end){
-      return prevHigh;
+    if(date >= first.date && date <= second.date){
+      previous = first;
+      next = second;
+      break;
     }
   }
 
-  return nextHigh();
+  if(!previous || !next){
+    return null;
+  }
+
+  const segmentDuration = next.date - previous.date;
+
+  if(segmentDuration <= 0){
+    return null;
+  }
+
+  const linearProgress = clamp(
+    (date - previous.date) / segmentDuration,
+    0,
+    1
+  );
+
+  /*
+    Interpolation cosinusoïdale :
+
+    0 au début du segment
+    1 à la fin du segment
+    pente douce près des PM et BM
+  */
+  const smoothProgress =
+    (1 - Math.cos(Math.PI * linearProgress)) / 2;
+
+  const height =
+    previous.height +
+    (next.height - previous.height) * smoothProgress;
+
+  let phase;
+
+  if(previous.type === "low" && next.type === "high"){
+    phase = "Montante";
+  }else{
+    const slackEnd = new Date(
+      previous.date.getTime() +
+      CONFIG.currentDelayMinutes * 60000
+    );
+
+    if(
+      previous.type === "high" &&
+      date >= previous.date &&
+      date < slackEnd
+    ){
+      phase = "Étale";
+    }else{
+      phase = "Descendante";
+    }
+  }
+
+  return {
+    height,
+    phase,
+    previous,
+    next,
+    linearProgress,
+    smoothProgress
+  };
 }
 
+/* =========================================================
+   RECHERCHE DES PLEINES MERS
+========================================================= */
+
+function previousHigh(referenceDate = new Date()){
+  for(let index = tides.length - 1; index >= 0; index--){
+    const event = tides[index];
+
+    if(event.type === "high" && event.date <= referenceDate){
+      return event;
+    }
+  }
+
+  return null;
+}
+
+function nextHigh(referenceDate = new Date()){
+  return tides.find(event =>
+    event.type === "high" &&
+    event.date > referenceDate
+  ) || null;
+}
+
+/* =========================================================
+   FENÊTRE D'EAU CALME
+========================================================= */
+
 function calmWindowAround(high){
-  let before = 20;
-  let after = 70;
+  let before = CONFIG.calmBaseBeforeMinutes;
+  let after = CONFIG.calmBaseAfterMinutes;
 
-  const coeff = high.coeff;
+  const coefficient = Number(high.coeff);
 
-  if(coeff){
-    if(coeff < 50){
+  if(Number.isFinite(coefficient)){
+    if(coefficient < 50){
       before = 30;
       after = 80;
-    }else if(coeff > 80){
+    }else if(coefficient > 80){
       before = 10;
       after = 60;
     }
   }
 
-  if(currentWind !== null){
+  if(Number.isFinite(currentWind)){
     if(currentWind > 22){
       before -= 5;
       after -= 10;
     }
+
     if(currentWind > 30){
       before -= 5;
       after -= 10;
     }
   }
 
-  before = Math.max(5, before);
-  after = Math.max(30, after);
+  before = Math.max(5,before);
+  after = Math.max(30,after);
 
   return {
     start: new Date(high.date.getTime() - before * 60000),
@@ -318,183 +613,384 @@ function calmWindowAround(high){
   };
 }
 
-function formatDuration(ms){
-  const totalMin = Math.max(0, Math.floor(ms / 60000));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
+function relevantHigh(referenceDate = new Date()){
+  const previous = previousHigh(referenceDate);
 
-  if(h > 0) return `${h}h ${String(m).padStart(2,"0")}m`;
-  return `${m} min`;
-}
+  if(previous){
+    const previousWindow = calmWindowAround(previous);
 
-function interpolateHeightAt(date){
-  let events = [...tides];
-
-  if(events.length >= 2 && date < events[0].date){
-    const first = events[0];
-    const second = events[1];
-
-    const syntheticPrevious = {
-      ...second,
-      date: new Date(first.date.getTime() - 12.4167 * 3600000),
-      height: second.height,
-      type: second.type
-    };
-
-    events = [syntheticPrevious, ...events];
+    if(
+      referenceDate >= previousWindow.start &&
+      referenceDate <= previousWindow.end
+    ){
+      return previous;
+    }
   }
 
-  const prev = [...events].reverse().find(e => e.date <= date);
-  const next = events.find(e => e.date > date);
-
-  if(!prev || !next) return null;
-
-  const ratio = Math.max(0, Math.min(1, (date - prev.date) / (next.date - prev.date)));
-  const smooth = 0.5 - 0.5 * Math.cos(Math.PI * ratio);
-
-  return prev.height + (next.height - prev.height) * smooth;
+  return nextHigh(referenceDate);
 }
 
-function mapHeight(height,minH,maxH){
-  const top = 38;
-  const bottom = 205;
+/* =========================================================
+   GRAPHIQUE
+========================================================= */
 
-  if(maxH === minH) return bottom;
+function mapHeight(height,minHeight,maxHeight){
+  const {top,bottom} = CONFIG.chart;
 
-  return bottom - ((height - minH) / (maxH - minH)) * (bottom - top);
+  if(maxHeight === minHeight){
+    return (top + bottom) / 2;
+  }
+
+  return bottom -
+    ((height - minHeight) / (maxHeight - minHeight)) *
+    (bottom - top);
 }
 
-function drawAxes(minH,maxH){
-  const yAxis = document.getElementById("yAxis");
-  const xAxis = document.getElementById("xAxis");
+function mapTime(date,start,end){
+  const {left,right} = CONFIG.chart;
 
-  yAxis.innerHTML = "";
-  xAxis.innerHTML = "";
+  const ratio = clamp(
+    (date - start) / (end - start),
+    0,
+    1
+  );
 
-  for(let h=Math.ceil(minH); h<=Math.floor(maxH); h++){
-    const y = mapHeight(h,minH,maxH);
-    yAxis.innerHTML += `
-      <line x1="45" y1="${y}" x2="360" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>
-      <text x="7" y="${y+4}" font-size="11" fill="#64748b">${h}m</text>
+  return left + ratio * (right - left);
+}
+
+function clearGraph(){
+  byId("wave").setAttribute("d","");
+  byId("fill").setAttribute("d","");
+  byId("dot").style.display = "none";
+  byId("nowLine").style.display = "none";
+  byId("currentHeight").textContent = "-- m";
+  byId("heightMetric").textContent = "-- m";
+  byId("eventLabels").innerHTML = "";
+}
+
+function drawYAxis(minHeight,maxHeight){
+  const axis = byId("yAxis");
+  const {left,right} = CONFIG.chart;
+
+  axis.innerHTML = "";
+
+  const step = maxHeight - minHeight <= 3 ? 0.5 : 1;
+
+  let firstTick = Math.ceil(minHeight / step) * step;
+
+  for(
+    let value = firstTick;
+    value <= maxHeight + 0.001;
+    value += step
+  ){
+    const y = mapHeight(value,minHeight,maxHeight);
+
+    axis.innerHTML += `
+      <line
+        x1="${left}"
+        y1="${y}"
+        x2="${right}"
+        y2="${y}"
+        stroke="currentColor"
+        stroke-opacity=".09"
+        stroke-width="1">
+      </line>
+
+      <text
+        x="7"
+        y="${y + 4}"
+        font-size="11"
+        fill="currentColor"
+        opacity=".55">
+        ${value.toFixed(step < 1 ? 1 : 0)}m
+      </text>
     `;
   }
+}
 
-  [["-6h",45],["Maint.",190],["+6h",335]].forEach(([label,x])=>{
-    xAxis.innerHTML += `
-      <text x="${x}" y="228" text-anchor="middle" font-size="11" fill="#64748b">${label}</text>
+function drawXAxis(start,end){
+  const axis = byId("xAxis");
+  const {left,right,bottom} = CONFIG.chart;
+  const middle = (left + right) / 2;
+
+  axis.innerHTML = "";
+
+  const labels = [
+    {date:start,x:left,anchor:"start"},
+    {
+      date:new Date((start.getTime() + end.getTime()) / 2),
+      x:middle,
+      anchor:"middle"
+    },
+    {date:end,x:right,anchor:"end"}
+  ];
+
+  labels.forEach(item => {
+    axis.innerHTML += `
+      <text
+        x="${item.x}"
+        y="${bottom + 23}"
+        text-anchor="${item.anchor}"
+        font-size="11"
+        fill="currentColor"
+        opacity=".55">
+        ${formatAxisTime(item.date)}
+      </text>
     `;
   });
 }
 
-function drawWave(){
-  if(tides.length < 2) return;
+function drawEventLabels(start,end,minHeight,maxHeight){
+  const group = byId("eventLabels");
 
-  const now = new Date();
+  group.innerHTML = "";
 
-  const heights = tides.map(e => e.height).filter(h => !isNaN(h));
-  if(!heights.length) return;
+  const visibleEvents = tides.filter(event =>
+    event.date >= start &&
+    event.date <= end
+  );
 
-  const minH = Math.max(0, Math.floor(Math.min(...heights)));
-  const maxH = Math.ceil(Math.max(...heights));
+  visibleEvents.forEach(event => {
+    const x = mapTime(event.date,start,end);
+    const y = mapHeight(event.height,minHeight,maxHeight);
 
-  drawAxes(minH,maxH);
+    const label = event.type === "high" ? "PM" : "BM";
+    const labelY = event.type === "high"
+      ? Math.max(46,y - 13)
+      : Math.min(194,y + 20);
 
-  let path = "";
-  const xStart = 45;
-  const xEnd = 360;
+    group.innerHTML += `
+      <circle
+        cx="${x}"
+        cy="${y}"
+        r="3.5"
+        fill="#007aff"
+        opacity=".75">
+      </circle>
 
-  const firstEvent = tides[0].date;
-  const hasPastEvent = tides.some(e => e.date <= now);
-
-  const start = hasPastEvent
-    ? new Date(now.getTime() - 6 * 3600000)
-    : firstEvent;
-
-  const end = hasPastEvent
-    ? new Date(now.getTime() + 6 * 3600000)
-    : new Date(start.getTime() + 12 * 3600000);
-
-  for(let x=xStart; x<=xEnd; x+=4){
-    const ratio = (x-xStart)/(xEnd-xStart);
-    const t = new Date(start.getTime() + ratio * (end-start));
-
-    const h = interpolateHeightAt(t);
-    if(h === null) continue;
-
-    const y = mapHeight(h,minH,maxH);
-    path += path === "" ? `M ${x} ${y}` : ` L ${x} ${y}`;
-  }
-
-  if(path){
-    document.getElementById("wave").setAttribute("d",path);
-    document.getElementById("fill").setAttribute("d",`${path} L 360 205 L 45 205 Z`);
-  }
-
-  const hNow = interpolateHeightAt(now);
-
-  if(hNow !== null){
-    const yNow = mapHeight(hNow,minH,maxH);
-
-    document.getElementById("dot").setAttribute("cx",190);
-    document.getElementById("dot").setAttribute("cy",yNow);
-    document.getElementById("currentHeight").textContent = hNow.toFixed(1) + " m";
-    document.getElementById("heightMetric").textContent = hNow.toFixed(1) + " m";
-  }else{
-    document.getElementById("currentHeight").textContent = "-- m";
-    document.getElementById("heightMetric").textContent = "-- m";
-  }
+      <text
+        x="${x}"
+        y="${labelY}"
+        text-anchor="middle"
+        font-size="10"
+        font-weight="800"
+        fill="currentColor"
+        opacity=".62">
+        ${label}
+      </text>
+    `;
+  });
 }
 
-function updatePhase(){
-  const now = new Date();
-  const high = lastHigh();
-  const low = lastLow();
+function drawWave(referenceDate = new Date()){
+  const graphStart = new Date(
+    referenceDate.getTime() -
+    CONFIG.graphHoursBefore * 3600000
+  );
 
-  if(high && now - high.date < CURRENT_DELAY_MINUTES * 60000){
-    document.getElementById("phase").textContent = "Étale";
-  }else if(low && (!high || low.date > high.date)){
-    document.getElementById("phase").textContent = "Montante";
-  }else{
-    document.getElementById("phase").textContent = "Descendante";
+  const graphEnd = new Date(
+    referenceDate.getTime() +
+    CONFIG.graphHoursAfter * 3600000
+  );
+
+  const samples = [];
+  const sampleCount = 160;
+
+  for(let index = 0; index <= sampleCount; index++){
+    const ratio = index / sampleCount;
+
+    const date = new Date(
+      graphStart.getTime() +
+      ratio * (graphEnd - graphStart)
+    );
+
+    const state = tideStateAt(date);
+
+    if(state){
+      samples.push({
+        date,
+        height:state.height
+      });
+    }
   }
-}
 
-function update(){
-  if(!tides.length) return;
-
-  const high = relevantHigh();
-
-  if(!high){
-    document.getElementById("status").textContent = "";
-    document.getElementById("timer").textContent = "Données à mettre à jour";
+  if(samples.length < 2){
+    clearGraph();
     return;
   }
 
-  const now = new Date();
+  const visibleEvents = tides.filter(event =>
+    event.date >= graphStart &&
+    event.date <= graphEnd
+  );
+
+  const allHeights = [
+    ...samples.map(sample => sample.height),
+    ...visibleEvents.map(event => event.height)
+  ];
+
+  let minimum = Math.min(...allHeights);
+  let maximum = Math.max(...allHeights);
+
+  const naturalRange = maximum - minimum;
+  const padding = Math.max(0.35,naturalRange * 0.15);
+
+  minimum = Math.max(0,minimum - padding);
+  maximum = maximum + padding;
+
+  if(maximum - minimum < 1){
+    const center = (maximum + minimum) / 2;
+    minimum = Math.max(0,center - 0.5);
+    maximum = center + 0.5;
+  }
+
+  drawYAxis(minimum,maximum);
+  drawXAxis(graphStart,graphEnd);
+  drawEventLabels(
+    graphStart,
+    graphEnd,
+    minimum,
+    maximum
+  );
+
+  let path = "";
+
+  samples.forEach((sample,index) => {
+    const x = mapTime(
+      sample.date,
+      graphStart,
+      graphEnd
+    );
+
+    const y = mapHeight(
+      sample.height,
+      minimum,
+      maximum
+    );
+
+    path += index === 0
+      ? `M ${x.toFixed(2)} ${y.toFixed(2)}`
+      : ` L ${x.toFixed(2)} ${y.toFixed(2)}`;
+  });
+
+  byId("wave").setAttribute("d",path);
+
+  const firstX = mapTime(
+    samples[0].date,
+    graphStart,
+    graphEnd
+  );
+
+  const lastX = mapTime(
+    samples[samples.length - 1].date,
+    graphStart,
+    graphEnd
+  );
+
+  byId("fill").setAttribute(
+    "d",
+    `${path} L ${lastX} ${CONFIG.chart.bottom} L ${firstX} ${CONFIG.chart.bottom} Z`
+  );
+
+  const currentState = tideStateAt(referenceDate);
+
+  if(!currentState){
+    byId("dot").style.display = "none";
+    byId("nowLine").style.display = "none";
+    byId("currentHeight").textContent = "-- m";
+    byId("heightMetric").textContent = "-- m";
+    return;
+  }
+
+  const currentX = mapTime(
+    referenceDate,
+    graphStart,
+    graphEnd
+  );
+
+  const currentY = mapHeight(
+    currentState.height,
+    minimum,
+    maximum
+  );
+
+  byId("dot").style.display = "";
+  byId("nowLine").style.display = "";
+
+  byId("dot").setAttribute("cx",currentX);
+  byId("dot").setAttribute("cy",currentY);
+
+  byId("nowLine").setAttribute("x1",currentX);
+  byId("nowLine").setAttribute("x2",currentX);
+
+  const displayedHeight =
+    currentState.height.toFixed(1) + " m";
+
+  byId("currentHeight").textContent = displayedHeight;
+  byId("heightMetric").textContent = displayedHeight;
+}
+
+/* =========================================================
+   MISE À JOUR DU TABLEAU DE BORD
+========================================================= */
+
+function updatePhase(referenceDate = new Date()){
+  const state = tideStateAt(referenceDate);
+
+  if(!state){
+    byId("phase").textContent = "--";
+    return;
+  }
+
+  byId("phase").textContent = state.phase;
+}
+
+function updateCalmWindow(referenceDate = new Date()){
+  const high = relevantHigh(referenceDate);
+
+  if(!high){
+    byId("status").textContent = "";
+    byId("calmWindow").textContent = "--";
+    byId("timer").textContent = "Données à mettre à jour";
+    byId("coef").textContent = "--";
+    byId("progressBar").style.width = "0%";
+    return;
+  }
+
   const calm = calmWindowAround(high);
-  const startCalm = calm.start;
-  const endCalm = calm.end;
 
-  const before = now < startCalm;
-  const during = now >= startCalm && now <= endCalm;
+  byId("calmWindow").textContent =
+    `${formatTime(calm.start)} → ${formatTime(calm.end)}`;
 
-  document.getElementById("calmWindow").textContent =
-    startCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) +
-    " → " +
-    endCalm.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  byId("coef").textContent =
+    Number.isFinite(Number(high.coeff))
+      ? Math.round(Number(high.coeff))
+      : "--";
 
-  document.getElementById("coef").textContent =
-    high.coeff ? high.coeff : "--";
+  const status = byId("status");
+  const timer = byId("timer");
+  const progressBar = byId("progressBar");
 
-  const status = document.getElementById("status");
-  const progressBar = document.getElementById("progressBar");
+  const isBefore = referenceDate < calm.start;
+
+  const isDuring =
+    referenceDate >= calm.start &&
+    referenceDate <= calm.end;
 
   let progress = 0;
 
-  if(during){
-    progress = ((now - startCalm) / (endCalm - startCalm)) * 100;
+  if(isDuring){
+    progress = clamp(
+      ((referenceDate - calm.start) /
+      (calm.end - calm.start)) * 100,
+      0,
+      100
+    );
 
-    if(currentWind !== null && currentWind > 22){
+    if(
+      Number.isFinite(currentWind) &&
+      currentWind > 22
+    ){
       status.textContent = "🟡 Eau calme mais ventée";
       status.style.color = "#ff9500";
       progressBar.style.background = "#ff9500";
@@ -504,102 +1000,165 @@ function update(){
       progressBar.style.background = "#34c759";
     }
 
-    document.getElementById("timer").textContent =
-      "Fin dans " + formatDuration(endCalm - now);
+    timer.textContent =
+      "Fin dans " +
+      formatDuration(calm.end - referenceDate);
 
-  }else if(before){
-    const timeBefore = startCalm - now;
+  }else if(isBefore){
+    const timeBefore = calm.start - referenceDate;
 
-    if(timeBefore <= 2 * 3600000){
+    if(
+      timeBefore <=
+      CONFIG.nearbyStatusHours * 3600000
+    ){
       status.textContent = "🟡 Bientôt favorable";
       status.style.color = "#ff9500";
       progressBar.style.background = "#ff9500";
 
-      document.getElementById("timer").textContent =
-        "Début dans " + formatDuration(timeBefore);
+      timer.textContent =
+        "Début dans " +
+        formatDuration(timeBefore);
+
     }else{
       status.textContent = "";
       progressBar.style.background = "#007aff";
 
-      document.getElementById("timer").textContent =
-        "Dans " + formatDuration(timeBefore);
+      timer.textContent =
+        "Dans " +
+        formatDuration(timeBefore);
     }
 
   }else{
-    const next = nextHigh();
+    const followingHigh = nextHigh(referenceDate);
 
     status.textContent = "";
     progressBar.style.background = "#007aff";
-    progress = 0;
 
-    if(next){
-      const nextCalm = calmWindowAround(next);
+    if(followingHigh){
+      const followingWindow =
+        calmWindowAround(followingHigh);
 
-      document.getElementById("calmWindow").textContent =
-        nextCalm.start.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) +
-        " → " +
-        nextCalm.end.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+      byId("calmWindow").textContent =
+        `${formatTime(followingWindow.start)} → ${formatTime(followingWindow.end)}`;
 
-      document.getElementById("timer").textContent =
-        "Dans " + formatDuration(nextCalm.start - now);
+      byId("coef").textContent =
+        Number.isFinite(Number(followingHigh.coeff))
+          ? Math.round(Number(followingHigh.coeff))
+          : "--";
+
+      timer.textContent =
+        "Dans " +
+        formatDuration(
+          followingWindow.start - referenceDate
+        );
+
     }else{
-      document.getElementById("timer").textContent =
-        "Données à mettre à jour";
+      timer.textContent = "Données à mettre à jour";
+      byId("calmWindow").textContent = "--";
+      byId("coef").textContent = "--";
     }
   }
 
   progressBar.style.width =
-    Math.max(0, Math.min(100, progress)) + "%";
-
-  updatePhase();
-  drawWave();
+    `${clamp(progress,0,100)}%`;
 }
+
+function update(){
+  if(tides.length < 2){
+    return;
+  }
+
+  const now = new Date();
+
+  updatePhase(now);
+  updateCalmWindow(now);
+  drawWave(now);
+}
+
+/* =========================================================
+   MÉTÉO
+========================================================= */
 
 async function loadWeather(){
   try{
     const url =
       "https://api.open-meteo.com/v1/forecast" +
-      "?latitude=44.934778" +
-      "&longitude=-0.445861" +
+      `?latitude=${CONFIG.latitude}` +
+      `&longitude=${CONFIG.longitude}` +
       "&current=temperature_2m,weather_code,wind_speed_10m" +
       "&timezone=Europe%2FParis";
 
-    const res = await fetch(url);
-    const data = await res.json();
+    const response = await fetch(url,{
+      cache:"no-store"
+    });
 
-    const temp = Math.round(data.current.temperature_2m);
-    const wind = Math.round(data.current.wind_speed_10m);
-    const code = data.current.weather_code;
+    if(!response.ok){
+      throw new Error("Météo indisponible");
+    }
 
-    currentWind = wind;
+    const data = await response.json();
 
-    document.getElementById("airTemp").textContent = temp + "°C";
-    document.getElementById("wind").textContent = wind + " km/h";
-    document.getElementById("weatherIcon").textContent = weatherIcon(code);
+    if(!data.current){
+      throw new Error("Réponse météo incorrecte");
+    }
+
+    const temperature =
+      Math.round(Number(data.current.temperature_2m));
+
+    const wind =
+      Math.round(Number(data.current.wind_speed_10m));
+
+    const weatherCode =
+      Number(data.current.weather_code);
+
+    currentWind = Number.isFinite(wind)
+      ? wind
+      : null;
+
+    byId("airTemp").textContent =
+      Number.isFinite(temperature)
+        ? temperature + "°C"
+        : "--°C";
+
+    byId("wind").textContent =
+      Number.isFinite(wind)
+        ? wind + " km/h"
+        : "--";
+
+    byId("weatherIcon").textContent =
+      weatherIcon(weatherCode);
 
     update();
 
-  }catch(e){
-    document.getElementById("airTemp").textContent = "--°C";
-    document.getElementById("wind").textContent = "--";
+  }catch(error){
+    console.error(error);
+
+    currentWind = null;
+    byId("airTemp").textContent = "--°C";
+    byId("wind").textContent = "--";
   }
 }
 
 function weatherIcon(code){
   if(code === 0) return "☀️";
-  if(code <= 3) return "⛅";
-  if(code <= 48) return "🌫️";
-  if(code <= 67) return "🌧️";
-  if(code <= 77) return "❄️";
-  if(code <= 82) return "🌦️";
-  if(code <= 99) return "⛈️";
+  if(code >= 1 && code <= 3) return "⛅";
+  if(code >= 45 && code <= 48) return "🌫️";
+  if(code >= 51 && code <= 67) return "🌧️";
+  if(code >= 71 && code <= 77) return "❄️";
+  if(code >= 80 && code <= 82) return "🌦️";
+  if(code >= 95 && code <= 99) return "⛈️";
+
   return "🌤️";
 }
+
+/* =========================================================
+   DÉMARRAGE
+========================================================= */
 
 loadData();
 loadWeather();
 
-setInterval(update,1000);
+setInterval(update,30 * 1000);
 setInterval(loadWeather,15 * 60 * 1000);
 </script>
 
