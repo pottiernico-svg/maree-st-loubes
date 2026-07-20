@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-19T06:43:56.416Z",
+  "updatedAt": "2026-07-20T07:28:28.351Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
   "spot": {
@@ -8,34 +8,6 @@
     "lon": -0.445861
   },
   "events": [
-    {
-      "type": "high",
-      "timeBordeaux": "2026-07-17T08:31:00.000Z",
-      "timeLocal": "2026-07-17T08:51:00.000Z",
-      "height": 5.15,
-      "coeff": 97
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-07-17T16:24:00.000Z",
-      "timeLocal": "2026-07-17T16:44:00.000Z",
-      "height": 0,
-      "coeff": 97
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-07-17T20:52:00.000Z",
-      "timeLocal": "2026-07-17T21:12:00.000Z",
-      "height": 5.5,
-      "coeff": 94
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-07-18T04:45:00.000Z",
-      "timeLocal": "2026-07-18T05:05:00.000Z",
-      "height": -0.15,
-      "coeff": 91
-    },
     {
       "type": "high",
       "timeBordeaux": "2026-07-18T09:13:00.000Z",
@@ -69,112 +41,182 @@
       "timeBordeaux": "2026-07-20T05:55:00.000Z",
       "timeLocal": "2026-07-20T06:15:00.000Z",
       "height": 0.1,
-      "coeff": 75
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-20T10:33:00.000Z",
       "timeLocal": "2026-07-20T10:53:00.000Z",
       "height": 4.6,
-      "coeff": 75
+      "coeff": 69
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-20T18:11:00.000Z",
       "timeLocal": "2026-07-20T18:31:00.000Z",
       "height": 0.2,
-      "coeff": 69
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-20T22:55:00.000Z",
       "timeLocal": "2026-07-20T23:15:00.000Z",
       "height": 4.7,
-      "coeff": 69
+      "coeff": 63
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-21T06:28:00.000Z",
       "timeLocal": "2026-07-21T06:48:00.000Z",
       "height": 0.2,
-      "coeff": 63
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-21T11:15:00.000Z",
       "timeLocal": "2026-07-21T11:35:00.000Z",
       "height": 4.35,
-      "coeff": 63
+      "coeff": 57
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-21T18:47:00.000Z",
       "timeLocal": "2026-07-21T19:07:00.000Z",
       "height": 0.3,
-      "coeff": 57
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-21T23:39:00.000Z",
       "timeLocal": "2026-07-21T23:59:00.000Z",
       "height": 4.35,
-      "coeff": 57
+      "coeff": 50
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-22T07:07:00.000Z",
       "timeLocal": "2026-07-22T07:27:00.000Z",
       "height": 0.35,
-      "coeff": 50
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-22T12:03:00.000Z",
       "timeLocal": "2026-07-22T12:23:00.000Z",
       "height": 4.1,
-      "coeff": 50
+      "coeff": 45
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-22T19:31:00.000Z",
       "timeLocal": "2026-07-22T19:51:00.000Z",
       "height": 0.4,
-      "coeff": 45
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-23T00:36:00.000Z",
       "timeLocal": "2026-07-23T00:56:00.000Z",
       "height": 4.1,
-      "coeff": 45
+      "coeff": 40
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-23T07:57:00.000Z",
       "timeLocal": "2026-07-23T08:17:00.000Z",
       "height": 0.5,
-      "coeff": 40
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-23T13:07:00.000Z",
       "timeLocal": "2026-07-23T13:27:00.000Z",
       "height": 4,
-      "coeff": 40
+      "coeff": 37
     },
     {
       "type": "low",
       "timeBordeaux": "2026-07-23T20:29:00.000Z",
       "timeLocal": "2026-07-23T20:49:00.000Z",
       "height": 0.55,
-      "coeff": 37
+      "coeff": null
     },
     {
       "type": "high",
       "timeBordeaux": "2026-07-24T01:46:00.000Z",
       "timeLocal": "2026-07-24T02:06:00.000Z",
       "height": 4,
+      "coeff": 35
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-24T09:06:00.000Z",
+      "timeLocal": "2026-07-24T09:26:00.000Z",
+      "height": 0.55,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-24T14:24:00.000Z",
+      "timeLocal": "2026-07-24T14:44:00.000Z",
+      "height": 4,
+      "coeff": 35
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-24T21:46:00.000Z",
+      "timeLocal": "2026-07-24T22:06:00.000Z",
+      "height": 0.55,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-25T03:01:00.000Z",
+      "timeLocal": "2026-07-25T03:21:00.000Z",
+      "height": 4.05,
       "coeff": 37
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-25T10:20:00.000Z",
+      "timeLocal": "2026-07-25T10:40:00.000Z",
+      "height": 0.55,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-25T15:37:00.000Z",
+      "timeLocal": "2026-07-25T15:57:00.000Z",
+      "height": 4.2,
+      "coeff": 40
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-25T22:58:00.000Z",
+      "timeLocal": "2026-07-25T23:18:00.000Z",
+      "height": 0.45,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-26T04:06:00.000Z",
+      "timeLocal": "2026-07-26T04:26:00.000Z",
+      "height": 4.25,
+      "coeff": 44
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-07-26T11:27:00.000Z",
+      "timeLocal": "2026-07-26T11:47:00.000Z",
+      "height": 0.5,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-07-26T16:34:00.000Z",
+      "timeLocal": "2026-07-26T16:54:00.000Z",
+      "height": 4.45,
+      "coeff": 48
     }
   ]
 }
