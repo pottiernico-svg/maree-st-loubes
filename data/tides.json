@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-26T04:54:43.971Z",
+  "updatedAt": "2026-08-27T15:14:25.147Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
   "spot": {
@@ -8,41 +8,6 @@
     "lon": -0.445861
   },
   "events": [
-    {
-      "type": "low",
-      "timeBordeaux": "2026-08-24T10:54:00.000Z",
-      "timeLocal": "2026-08-24T11:14:00.000Z",
-      "height": 0.55,
-      "coeff": null
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-08-24T16:09:00.000Z",
-      "timeLocal": "2026-08-24T16:29:00.000Z",
-      "height": 4.4,
-      "coeff": 44
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-08-24T23:28:00.000Z",
-      "timeLocal": "2026-08-24T23:48:00.000Z",
-      "height": 0.4,
-      "coeff": null
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-08-25T04:33:00.000Z",
-      "timeLocal": "2026-08-25T04:53:00.000Z",
-      "height": 4.4,
-      "coeff": 51
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-08-25T11:53:00.000Z",
-      "timeLocal": "2026-08-25T12:13:00.000Z",
-      "height": 0.45,
-      "coeff": null
-    },
     {
       "type": "high",
       "timeBordeaux": "2026-08-25T16:55:00.000Z",
@@ -245,6 +210,34 @@
       "timeLocal": "2026-09-01T21:20:00.000Z",
       "height": 5.2,
       "coeff": 85
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-09-02T04:49:00.000Z",
+      "timeLocal": "2026-09-02T05:09:00.000Z",
+      "height": 0.1,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-09-02T09:21:00.000Z",
+      "timeLocal": "2026-09-02T09:41:00.000Z",
+      "height": 4.9,
+      "coeff": 81
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-09-02T17:02:00.000Z",
+      "timeLocal": "2026-09-02T17:22:00.000Z",
+      "height": 0.1,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-09-02T21:37:00.000Z",
+      "timeLocal": "2026-09-02T21:57:00.000Z",
+      "height": 4.95,
+      "coeff": 75
     }
   ]
 }
