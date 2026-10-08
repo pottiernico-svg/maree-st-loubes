@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-07T11:03:44.489Z",
+  "updatedAt": "2026-10-08T11:21:04.423Z",
   "source": "maree.info Bordeaux",
   "offsetMinutes": 20,
   "spot": {
@@ -8,34 +8,6 @@
     "lon": -0.445861
   },
   "events": [
-    {
-      "type": "high",
-      "timeBordeaux": "2026-10-05T13:38:00.000Z",
-      "timeLocal": "2026-10-05T13:58:00.000Z",
-      "height": 4.35,
-      "coeff": 43
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-10-05T21:11:00.000Z",
-      "timeLocal": "2026-10-05T21:31:00.000Z",
-      "height": 0.4,
-      "coeff": null
-    },
-    {
-      "type": "high",
-      "timeBordeaux": "2026-10-06T02:25:00.000Z",
-      "timeLocal": "2026-10-06T02:45:00.000Z",
-      "height": 4.3,
-      "coeff": 48
-    },
-    {
-      "type": "low",
-      "timeBordeaux": "2026-10-06T09:50:00.000Z",
-      "timeLocal": "2026-10-06T10:10:00.000Z",
-      "height": 0.45,
-      "coeff": null
-    },
     {
       "type": "high",
       "timeBordeaux": "2026-10-06T15:04:00.000Z",
@@ -238,6 +210,34 @@
       "timeLocal": "2026-10-13T20:12:00.000Z",
       "height": 5.05,
       "coeff": 83
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-10-14T03:31:00.000Z",
+      "timeLocal": "2026-10-14T03:51:00.000Z",
+      "height": 0.15,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-10-14T08:04:00.000Z",
+      "timeLocal": "2026-10-14T08:24:00.000Z",
+      "height": 4.95,
+      "coeff": 79
+    },
+    {
+      "type": "low",
+      "timeBordeaux": "2026-10-14T15:42:00.000Z",
+      "timeLocal": "2026-10-14T16:02:00.000Z",
+      "height": 0.2,
+      "coeff": null
+    },
+    {
+      "type": "high",
+      "timeBordeaux": "2026-10-14T20:20:00.000Z",
+      "timeLocal": "2026-10-14T20:40:00.000Z",
+      "height": 4.8,
+      "coeff": 74
     }
   ]
 }
